@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Storage — keep folder structure but not generated files
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/reports/*
+!storage/reports/.gitkeep
+storage/charts/*
+!storage/charts/.gitkeep
+storage/temp/*
+!storage/temp/.gitkeep
+
+# Python service storage
+python-service/storage/temp/*
+!python-service/storage/temp/.gitkeep
+python-service/storage/reports/*
+!python-service/storage/reports/.gitkeep
+
+# Word temp lock files
+~$*
+
+# Claude internal
+.claude/

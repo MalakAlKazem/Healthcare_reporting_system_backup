@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  python-service:
+    build: ./python-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - ENABLE_AI=false
+    volumes:
+      - ./storage:/app/storage
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - python-service

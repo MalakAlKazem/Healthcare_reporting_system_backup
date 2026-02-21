@@ -1,0 +1,630 @@
+/* ============================================
+   ANALYSIS PAGE STYLES
+   ============================================ */
+
+.analysisContainer {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Header Section */
+.analysisHeader {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+  border-radius: 28px;
+  padding: 3rem;
+  color: white;
+  box-shadow: 0 25px 70px rgba(99, 102, 241, 0.35);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 2.5rem;
+}
+
+.analysisHeader::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+  top: -300px;
+  left: -100px;
+  border-radius: 50%;
+  animation: float 8s ease-in-out infinite;
+}
+
+.analysisHeader::after {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  bottom: -200px;
+  right: -100px;
+  border-radius: 50%;
+  animation: float 10s ease-in-out infinite reverse;
+}
+
+.headerContent {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerLeft {
+  animation: slideInLeft 0.6s ease-out;
+}
+
+.headerIconWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.headerIcon {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(15px);
+  padding: 1.25rem;
+  border-radius: 18px;
+  font-size: 3rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  animation: float 4s ease-in-out infinite;
+}
+
+.headerTitle {
+  font-size: 3.5rem;
+  font-weight: 900;
+  letter-spacing: -1px;
+  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  line-height: 1.1;
+}
+
+.headerSubtitle {
+  font-size: 1.375rem;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.headerDecoration {
+  font-size: 8rem;
+  opacity: 0.15;
+  animation: pulse 3s ease-in-out infinite;
+}
+
+/* Empty State */
+.emptyState {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+  border-radius: 28px;
+  padding: 5rem 3rem;
+  text-align: center;
+  color: white;
+  box-shadow: 0 25px 70px rgba(99, 102, 241, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.emptyStateBackground {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+  opacity: 0.3;
+}
+
+.emptyStateContent {
+  position: relative;
+  z-index: 1;
+}
+
+.emptyStateIconWrapper {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(15px);
+  padding: 2rem;
+  border-radius: 24px;
+  margin-bottom: 2rem;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+.emptyStateIcon {
+  font-size: 6rem;
+  display: block;
+}
+
+.emptyStateTitle {
+  font-size: 3rem;
+  font-weight: 900;
+  margin-bottom: 1rem;
+  text-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.emptyStateText {
+  font-size: 1.375rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Analysis Type Selector */
+.typeSelector {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e7ff;
+  margin-bottom: 2.5rem;
+}
+
+.typeSelectorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.typeButton {
+  flex: 1;
+  min-width: 250px;
+  padding: 1.75rem 2rem;
+  border-radius: 16px;
+  font-weight: 800;
+  font-size: 1.125rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.typeButton::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.typeButton:hover::before {
+  opacity: 1;
+}
+
+.typeButtonActive {
+  color: white;
+  transform: scale(1.05);
+}
+
+.typeButtonActive.trendButton {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  box-shadow: 0 15px 40px rgba(99, 102, 241, 0.4);
+}
+
+.typeButtonActive.correlationButton {
+  background: linear-gradient(135deg, #ec4899 0%, #ef4444 100%);
+  box-shadow: 0 15px 40px rgba(236, 72, 153, 0.4);
+}
+
+.typeButtonInactive {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #475569;
+}
+
+.typeButtonInactive:hover {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  transform: translateY(-2px);
+}
+
+.typeButtonIcon {
+  font-size: 1.75rem;
+}
+
+/* Insights Grid */
+.insightsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.insightCard {
+  border-radius: 24px;
+  padding: 2.5rem;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInScale 0.5s ease-out backwards;
+}
+
+.insightCard:nth-child(1) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  animation-delay: 0.1s;
+}
+
+.insightCard:nth-child(2) {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  animation-delay: 0.2s;
+}
+
+.insightCard:nth-child(3) {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  animation-delay: 0.3s;
+}
+
+.insightCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+  opacity: 0.2;
+}
+
+.insightCard:hover {
+  transform: translateY(-12px) scale(1.03);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+}
+
+.insightContent {
+  position: relative;
+  z-index: 1;
+}
+
+.insightIconWrapper {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  animation: bounce 2s ease-in-out infinite;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.insightIcon {
+  font-size: 2rem;
+}
+
+.insightTitle {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+  opacity: 0.9;
+}
+
+.insightValue {
+  font-size: 4rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 0.75rem;
+  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.insightDescription {
+  font-size: 0.875rem;
+  opacity: 0.85;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.insightProgress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.insightProgressBar {
+  height: 100%;
+  background: white;
+  border-radius: 999px;
+  width: 75%;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.5);
+  animation: progressGrow 1.5s ease-out;
+}
+
+/* Chart Section */
+.chartSection {
+  background: white;
+  border-radius: 28px;
+  padding: 3rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 2.5rem;
+  animation: fadeInScale 0.6s ease-out;
+}
+
+.chartHeader {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.chartIcon {
+  padding: 1rem;
+  border-radius: 16px;
+  font-size: 2.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.trendChart .chartIcon {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+.correlationChart .chartIcon {
+  background: linear-gradient(135deg, #ec4899 0%, #ef4444 100%);
+}
+
+.chartTitle {
+  font-size: 2.25rem;
+  font-weight: 900;
+  flex: 1;
+}
+
+.trendChart .chartTitle {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.correlationChart .chartTitle {
+  background: linear-gradient(135deg, #ec4899 0%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.chartContainer {
+  padding: 2rem;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.trendChart .chartContainer {
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+}
+
+.correlationChart .chartContainer {
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+}
+
+/* Recommendations Section */
+.recommendations {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+  border-radius: 28px;
+  padding: 3.5rem 3rem;
+  color: white;
+  box-shadow: 0 25px 70px rgba(124, 58, 237, 0.4);
+  position: relative;
+  overflow: hidden;
+  animation: fadeInScale 0.6s ease-out;
+}
+
+.recommendations::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+  opacity: 0.3;
+}
+
+.recommendations::after {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  top: -200px;
+  right: -200px;
+  border-radius: 50%;
+}
+
+.recommendationsContent {
+  position: relative;
+  z-index: 1;
+}
+
+.recommendationsHeader {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.recommendationsIcon {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(15px);
+  padding: 1.25rem;
+  border-radius: 20px;
+  font-size: 3.5rem;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.2);
+  animation: float 5s ease-in-out infinite;
+}
+
+.recommendationsTitle {
+  font-size: 3rem;
+  font-weight: 900;
+  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.recommendationsList {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.recommendationsItems {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.recommendationItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  transition: all 0.3s;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recommendationItem:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(8px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.recommendationIcon {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  padding: 0.75rem;
+  border-radius: 12px;
+  font-size: 2rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.recommendationText {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.7;
+  flex: 1;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+@keyframes progressGrow {
+  from { width: 0; }
+  to { width: 75%; }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .insightsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .analysisHeader {
+    padding: 2rem;
+  }
+  
+  .headerContent {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .headerTitle {
+    font-size: 2.5rem;
+  }
+  
+  .headerDecoration {
+    display: none;
+  }
+  
+  .insightsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .typeSelectorGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .chartSection {
+    padding: 2rem;
+  }
+  
+  .chartTitle {
+    font-size: 1.75rem;
+  }
+  
+  .recommendations {
+    padding: 2rem;
+  }
+  
+  .recommendationsTitle {
+    font-size: 2rem;
+  }
+}

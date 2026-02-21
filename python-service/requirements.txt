@@ -1,0 +1,30 @@
+# FastAPI & Web Server
+fastapi==0.128.7
+uvicorn[standard]==0.40.0
+python-multipart==0.0.22
+aiofiles==25.1.0
+
+# Data Processing
+pandas==3.0.0
+numpy==2.4.2
+openpyxl==3.1.5
+
+# DOCX Report Generation
+python-docx==1.2.0
+lxml==6.0.2
+
+# Chart Generation
+matplotlib==3.10.8
+arabic-reshaper==3.0.0
+python-bidi==0.4.2
+Pillow==12.1.0
+
+# Configuration & Logging
+python-dotenv==1.2.1
+loguru==0.7.3
+pydantic==2.12.5
+pydantic-settings==2.12.0
+
+# Testing
+pytest==9.0.2
+httpx==0.28.1
