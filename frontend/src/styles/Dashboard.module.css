@@ -147,10 +147,7 @@
   line-height: 1;
   margin-bottom: 0.75rem;
 }
-.kpiCard.highlight {
-  border-left: 4px solid #3b82f6;
-  padding-left: 16px;
-}
+
 .kpiFooter {
   display: flex;
   align-items: center;

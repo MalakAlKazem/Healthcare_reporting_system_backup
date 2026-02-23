@@ -1,0 +1,13 @@
+# # Windows (PowerShell)
+# New-Item storage/uploads/.gitkeep
+# New-Item storage/reports/.gitkeep
+# New-Item storage/charts/.gitkeep
+# New-Item storage/temp/.gitkeep
+# New-Item python-service/models/.gitkeep
+
+# # Linux/Mac
+# touch storage/uploads/.gitkeep
+# touch storage/reports/.gitkeep
+# touch storage/charts/.gitkeep
+# touch storage/temp/.gitkeep
+# touch python-service/models/.gitkeep

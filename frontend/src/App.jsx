@@ -14,22 +14,12 @@ function App() {
   const { t, i18n } = useTranslation();
   const [language, setLanguage] = useState('ar');
   const [mortalityData, setMortalityData] = useState(null);
-  const [historyData, setHistoryData] = useState([]);
-
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
     document.body.lang = language;
   }, [language]);
-
-  useEffect(() => {
-    fetch('http://localhost:8000/api/history')
-    .then(res => res.json())
-    .then(data => setHistoryData(data))
-    .catch(err => console.error('Failed to load history:', err));
-  }, []);
-
 
   const toggleLanguage = () => {
     const newLang = language === 'ar' ? 'en' : 'ar';
@@ -106,15 +96,7 @@ function App() {
         <main className="main-content">
           <div className="content-wrapper">
             <Routes>
-              <Route path="/" element={
-                <Dashboard
-                  data={mortalityData}
-                  totalPatients={mortalityData?.totalPatients || 0}
-                  quarter={mortalityData?.quarter || ''}
-                  year={mortalityData?.year || ''}
-                  historyData={historyData}
-                />
-              } />
+              <Route path="/" element={<Dashboard data={mortalityData} />} />
               <Route path="/upload" element={<Upload onDataLoaded={setMortalityData} />} />
               <Route path="/analysis" element={<Analysis data={mortalityData} />} />
               <Route path="/reports" element={<Reports data={mortalityData} language={language} />} />
