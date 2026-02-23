@@ -66,7 +66,12 @@ function Upload({ onDataLoaded }) {
       console.log('✅ Upload successful:', response.data);
 
       // Store data in parent component
-      onDataLoaded(response.data.data);
+      onDataLoaded({
+      ...response.data.data,
+      totalPatients: parseInt(totalPatients),
+      quarter,
+      year,
+    });
 
       setSuccess(true);
       setUploading(false);

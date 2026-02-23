@@ -97,7 +97,7 @@ class MortalityDataProcessor:
         'الجنس': 'gender',
         'gender': 'gender',
         'الجهة الضامنة': 'insurance',
-        'الإقامة': 'residence',
+        'الإقامة': 'los',
 
         # Stay duration
         'los': 'length_of_stay',
