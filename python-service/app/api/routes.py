@@ -211,6 +211,17 @@ async def process_mortality_data(
             except:
                 pass
 
+@router.get("/history")
+async def get_history():
+    try:
+        history = history_manager.load_history()
+        # Sort chronologically (oldest first) for the trend chart
+        history.sort(key=lambda r: history_manager._quarter_sort_key(r))
+        return convert_numpy(history)
+    except Exception as e:
+        logger.error(f"History fetch error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/generate-report")
 async def generate_report(request: dict):
