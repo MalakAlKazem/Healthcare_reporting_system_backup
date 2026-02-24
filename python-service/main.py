@@ -12,6 +12,7 @@ import os
 
 # Import API routes
 from app.api.routes import router
+from app.api.medication_routes import router as medication_router
 
 # Configure logging
 logger.remove()
@@ -49,6 +50,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(router, prefix="/api")
+app.include_router(medication_router, prefix="/api/medication")
 
 
 @app.get("/health")

@@ -12,7 +12,7 @@ from loguru import logger
 class MedicationErrorHistory:
     """Manage medication error historical data"""
     
-    def __init__(self, storage_path: str = 'storage/medication_error_history.json'):
+    def __init__(self, storage_path: str = 'storage/data/medication_error_history.json'):
         self.storage_path = Path(storage_path)
         self.history = []
         

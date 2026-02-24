@@ -43,7 +43,11 @@ class MedicationErrorStatistics:
             'staff_involved': self._calculate_staff_involved(df),
             'error_causes': self._calculate_error_causes(df),
             'error_types': self._calculate_error_types(df),
-            'departments': self._calculate_departments(df)
+            'departments': self._calculate_departments(df),
+            'ncc_merp': self._calculate_ncc_merp(df),
+            'cause_stage_matrix': self._calculate_cause_stage_matrix(df),
+            'type_stage_matrix': self._calculate_type_stage_matrix(df),
+            'departments_all': self._calculate_departments_all(df),
         }
         
         logger.success(f"✅ Statistics calculated - Error rate: {error_rate}%")
@@ -282,16 +286,295 @@ class MedicationErrorStatistics:
         """Department distribution"""
         if 'nursing_unit' not in df.columns:
             return {'counts': {}, 'percentages': {}, 'total': 0}
-        
+
         # Weighted counts
         if 'error_count' in df.columns:
             counts = df.groupby('nursing_unit')['error_count'].sum().nlargest(20).to_dict()
         else:
             counts = df['nursing_unit'].value_counts().head(20).to_dict()
-        
+
         total = sum(counts.values())
         return {
             'counts': counts,
             'percentages': {k: round((v/total)*100, 1) for k, v in counts.items()},
             'total': int(total)
         }
+
+    def _calculate_ncc_merp(self, df: pd.DataFrame) -> Dict:
+        """
+        NCC MERP classification breakdown.
+        Groups 'error_count' by 'error_category' (mapped from Excel 'Error Category').
+        Normalises raw values like 'A', 'B', 'Category A', 'category b' → 'Category X'.
+        """
+        if 'error_category' not in df.columns:
+            return {'counts': {}, 'percentages': {}, 'total': 0}
+
+        VALID = {'A', 'B', 'C', 'D', 'E', 'F'}
+
+        def standardize(val):
+            s = str(val).strip().upper()
+            # "Category B" or "CATEGORY B"
+            if s.startswith('CATEGORY '):
+                letter = s[len('CATEGORY '):].strip()
+                if letter in VALID:
+                    return f'Category {letter}'
+            # bare letter "B"
+            if s in VALID:
+                return f'Category {s}'
+            return None   # unrecognised — skip
+
+        df_clean = df.copy()
+        df_clean['ncc_clean'] = df_clean['error_category'].apply(standardize)
+        df_clean = df_clean[df_clean['ncc_clean'].notna()]
+
+        if df_clean.empty:
+            return {'counts': {}, 'percentages': {}, 'total': 0}
+
+        if 'error_count' in df_clean.columns:
+            counts = df_clean.groupby('ncc_clean')['error_count'].sum().to_dict()
+        else:
+            counts = df_clean['ncc_clean'].value_counts().to_dict()
+
+        counts = {k: int(v) for k, v in counts.items()}
+        total  = sum(counts.values())
+        return {
+            'counts':      counts,
+            'percentages': {k: round((v / total) * 100, 1) for k, v in counts.items()},
+            'total':       total,
+        }
+
+    def _calculate_cause_stage_matrix(self, df: pd.DataFrame) -> Dict:
+        """
+        Cross-tabulation: Cause of Error (rows) × Stage of Process (columns).
+        - 'Transcription' and 'Administration' are merged into one column.
+        - All causes from the data are included (sorted by row total descending).
+        - Any unexpected stage values are appended after the preferred order.
+
+        Returns:
+            causes      – ordered list of cause labels
+            stages      – ordered list of stage labels (merged columns)
+            matrix      – {cause: {stage: count}}
+            row_totals  – {cause: total}
+            col_totals  – {stage: total}
+            grand_total – int
+        """
+        CAUSE_COL = 'error_cause'
+        STAGE_COL = 'error_cycle'
+
+        if CAUSE_COL not in df.columns or STAGE_COL not in df.columns:
+            return {
+                'causes': [], 'stages': [], 'matrix': {},
+                'row_totals': {}, 'col_totals': {}, 'grand_total': 0,
+            }
+
+        # Preferred stage display order
+        STAGE_ORDER = [
+            'Prescribing',
+            'Transcription & Administration',
+            'Dispensing',
+            'Preparation',
+            'Monitoring',
+        ]
+
+        def normalize_stage(val):
+            s = str(val).strip().lower()
+            if 'prescri'  in s: return 'Prescribing'
+            if 'transcri' in s: return 'Transcription & Administration'
+            if 'admin'    in s: return 'Transcription & Administration'
+            if 'dispens'  in s: return 'Dispensing'
+            if 'monitor'  in s: return 'Monitoring'
+            if 'prepar'   in s: return 'Preparation'
+            return str(val).strip().title()
+
+        df_clean = df.copy()
+        df_clean['stage_norm'] = df_clean[STAGE_COL].apply(normalize_stage)
+
+        # Normalise cause: strip + lowercase key, title-case display label
+        df_clean['cause_raw']  = df_clean[CAUSE_COL].fillna('Unknown').astype(str).str.strip()
+        df_clean['cause_key']  = df_clean['cause_raw'].str.lower()
+
+        # Build a display label map: lowercase key → title-case label
+        cause_label = {}
+        for raw, key in zip(df_clean['cause_raw'], df_clean['cause_key']):
+            if key not in cause_label:
+                cause_label[key] = raw.title() if raw else 'Unknown'
+
+        # Weighted pivot grouped by (cause_key, stage_norm)
+        if 'error_count' in df_clean.columns:
+            pivot = df_clean.pivot_table(
+                index='cause_key', columns='stage_norm',
+                values='error_count', aggfunc='sum', fill_value=0
+            )
+        else:
+            pivot = df_clean.pivot_table(
+                index='cause_key', columns='stage_norm',
+                aggfunc='size', fill_value=0
+            )
+
+        actual_stages  = list(pivot.columns)
+        ordered_stages = [s for s in STAGE_ORDER if s in actual_stages]
+        extra_stages   = [s for s in actual_stages if s not in STAGE_ORDER]
+        ordered_stages = ordered_stages + extra_stages
+        pivot = pivot.reindex(columns=ordered_stages, fill_value=0)
+
+        cause_keys = list(pivot.index)
+        matrix = {
+            cause_label[key]: {stage: int(pivot.loc[key, stage]) for stage in ordered_stages}
+            for key in cause_keys
+        }
+        causes      = list(matrix.keys())
+        row_totals  = {cause: int(sum(matrix[cause].values())) for cause in causes}
+        col_totals  = {
+            stage: int(sum(matrix[cause].get(stage, 0) for cause in causes))
+            for stage in ordered_stages
+        }
+        grand_total = int(sum(row_totals.values()))
+
+        # Sort causes by row total descending
+        causes_sorted = sorted(causes, key=lambda c: row_totals[c], reverse=True)
+
+        return {
+            'causes':      causes_sorted,
+            'stages':      ordered_stages,
+            'matrix':      matrix,
+            'row_totals':  row_totals,
+            'col_totals':  col_totals,
+            'grand_total': grand_total,
+        }
+
+    def _calculate_type_stage_matrix(self, df: pd.DataFrame) -> Dict:
+        """
+        Cross-tabulation: Type of Error (rows) × Stage of Process (columns).
+        - 'Transcription' and 'Administration' are merged into one column.
+        - All types from the data are included (sorted by row total descending).
+        - Any unexpected stage values are appended after the preferred order.
+
+        Returns:
+            types       – ordered list of type labels
+            stages      – ordered list of stage labels (merged columns)
+            matrix      – {type: {stage: count}}
+            row_totals  – {type: total}
+            col_totals  – {stage: total}
+            grand_total – int
+        """
+        TYPE_COL  = 'error_type'
+        STAGE_COL = 'error_cycle'
+
+        if TYPE_COL not in df.columns or STAGE_COL not in df.columns:
+            return {
+                'types': [], 'stages': [], 'matrix': {},
+                'row_totals': {}, 'col_totals': {}, 'grand_total': 0,
+            }
+
+        STAGE_ORDER = [
+            'Prescribing',
+            'Transcription & Administration',
+            'Dispensing',
+            'Preparation',
+            'Monitoring',
+        ]
+
+        def normalize_stage(val):
+            s = str(val).strip().lower()
+            if 'prescri'  in s: return 'Prescribing'
+            if 'transcri' in s: return 'Transcription & Administration'
+            if 'admin'    in s: return 'Transcription & Administration'
+            if 'dispens'  in s: return 'Dispensing'
+            if 'monitor'  in s: return 'Monitoring'
+            if 'prepar'   in s: return 'Preparation'
+            return str(val).strip().title()
+
+        df_clean = df.copy()
+        df_clean['stage_norm'] = df_clean[STAGE_COL].apply(normalize_stage)
+
+        # Normalise type: strip + lowercase key, title-case display label
+        df_clean['type_raw'] = df_clean[TYPE_COL].fillna('Unknown').astype(str).str.strip()
+        df_clean['type_key'] = df_clean['type_raw'].str.lower()
+
+        # Build a display label map: lowercase key → title-case label
+        type_label = {}
+        for raw, key in zip(df_clean['type_raw'], df_clean['type_key']):
+            if key not in type_label:
+                type_label[key] = raw.title() if raw else 'Unknown'
+
+        # Weighted pivot grouped by (type_key, stage_norm)
+        if 'error_count' in df_clean.columns:
+            pivot = df_clean.pivot_table(
+                index='type_key', columns='stage_norm',
+                values='error_count', aggfunc='sum', fill_value=0
+            )
+        else:
+            pivot = df_clean.pivot_table(
+                index='type_key', columns='stage_norm',
+                aggfunc='size', fill_value=0
+            )
+
+        actual_stages  = list(pivot.columns)
+        ordered_stages = [s for s in STAGE_ORDER if s in actual_stages]
+        extra_stages   = [s for s in actual_stages if s not in STAGE_ORDER]
+        ordered_stages = ordered_stages + extra_stages
+        pivot = pivot.reindex(columns=ordered_stages, fill_value=0)
+
+        type_keys = list(pivot.index)
+        matrix = {
+            type_label[key]: {stage: int(pivot.loc[key, stage]) for stage in ordered_stages}
+            for key in type_keys
+        }
+        types       = list(matrix.keys())
+        row_totals  = {t: int(sum(matrix[t].values())) for t in types}
+        col_totals  = {
+            stage: int(sum(matrix[t].get(stage, 0) for t in types))
+            for stage in ordered_stages
+        }
+        grand_total = int(sum(row_totals.values()))
+
+        # Sort types by row total descending
+        types_sorted = sorted(types, key=lambda t: row_totals[t], reverse=True)
+
+        return {
+            'types':       types_sorted,
+            'stages':      ordered_stages,
+            'matrix':      matrix,
+            'row_totals':  row_totals,
+            'col_totals':  col_totals,
+            'grand_total': grand_total,
+        }
+
+    def _calculate_departments_all(self, df: pd.DataFrame) -> Dict:
+        """
+        All nursing units with their ME counts.
+        - NaN / empty strings → '(blank)'
+        - Sorted alphabetically (case-insensitive), '(blank)' last.
+
+        Returns:
+            units  – ordered list of unit labels
+            counts – {unit: count}
+            total  – grand total
+        """
+        if 'nursing_unit' not in df.columns:
+            return {'units': [], 'counts': {}, 'total': 0}
+
+        df_clean = df.copy()
+        df_clean['unit_clean'] = (
+            df_clean['nursing_unit']
+            .fillna('(blank)')
+            .astype(str)
+            .str.strip()
+        )
+        df_clean.loc[df_clean['unit_clean'] == '', 'unit_clean'] = '(blank)'
+
+        if 'error_count' in df_clean.columns:
+            counts_s = df_clean.groupby('unit_clean')['error_count'].sum()
+        else:
+            counts_s = df_clean['unit_clean'].value_counts()
+
+        counts = {k: int(v) for k, v in counts_s.items()}
+        total  = int(sum(counts.values()))
+
+        # Alphabetical sort, case-insensitive; '(blank)' goes last
+        def _sort_key(k):
+            return ('zzz', k) if k == '(blank)' else (k.lower(), k)
+
+        units_sorted = sorted(counts.keys(), key=_sort_key)
+
+        return {'units': units_sorted, 'counts': counts, 'total': total}
