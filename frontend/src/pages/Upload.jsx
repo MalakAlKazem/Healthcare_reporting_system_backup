@@ -78,7 +78,7 @@ function Upload({ onDataLoaded }) {
 
       // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        navigate('/');
+        navigate('/mortality/dashboard');
       }, 2000);
 
     } catch (err) {

@@ -222,7 +222,7 @@ async def download_medication_report(fileName: str):
     """
     safe_name = os.path.basename(fileName)
     reports_dir = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), '..', '..', '..', 'storage', 'reports')
+        os.path.join(os.path.dirname(__file__), '..', '..', 'storage', 'reports')
     )
     file_path = os.path.join(reports_dir, safe_name)
 

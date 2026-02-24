@@ -1,21 +1,113 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './i18n/config';
 import './App.css';
 
 // Pages
+import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import Upload from './pages/Upload';
-import Analysis from './pages/Analysis';
 import Reports from './pages/Reports';
+import MedicationUpload from './pages/MedicationUpload';
+import MedicationDashboard from './pages/MedicationDashboard';
+import MedicationReports from './pages/MedicationReports';
 
+// ─── Navbar: changes based on current route section ────────────────────────
+function Navbar({ language, toggleLanguage }) {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const ar = language === 'ar';
+
+  const isMortality = location.pathname.startsWith('/mortality');
+  const isMedication = location.pathname.startsWith('/medication');
+  const isHome = location.pathname === '/';
+
+  return (
+    <nav className="navbar">
+      <div className="navbar-container">
+        {/* Logo & Brand — always links to home */}
+        <button
+          className="navbar-brand"
+          onClick={() => navigate('/')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          <div className="logo">
+            <span className="logo-icon">🏥</span>
+          </div>
+          <div className="brand-text">
+            <h1 className="brand-title">
+              {isMortality
+                ? (ar ? 'نظام تحليل معدل الوفيات' : 'Mortality Analysis System')
+                : isMedication
+                  ? (ar ? 'نظام أخطاء الدواء' : 'Medication Error System')
+                  : (ar ? 'نظام التقارير الصحية' : 'Healthcare Reporting System')}
+            </h1>
+            <p className="brand-subtitle">
+              {ar ? 'تحليلات طبية متقدمة' : 'Advanced Medical Analytics'}
+            </p>
+          </div>
+        </button>
+
+        <div className="navbar-menu">
+          {/* Home: no section links */}
+          {isHome && null}
+
+          {/* Mortality section links */}
+          {isMortality && (
+            <>
+              <NavLink to="/mortality/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📊</span>
+                <span>{t('dashboard')}</span>
+              </NavLink>
+              <NavLink to="/mortality/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📤</span>
+                <span>{t('upload')}</span>
+              </NavLink>
+              <NavLink to="/mortality/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📄</span>
+                <span>{t('reports')}</span>
+              </NavLink>
+            </>
+          )}
+
+          {/* Medication section links */}
+          {isMedication && (
+            <>
+              <NavLink to="/medication/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📊</span>
+                <span>{ar ? 'لوحة البيانات' : 'Dashboard'}</span>
+              </NavLink>
+              <NavLink to="/medication/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📤</span>
+                <span>{ar ? 'رفع البيانات' : 'Upload'}</span>
+              </NavLink>
+              <NavLink to="/medication/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📄</span>
+                <span>{ar ? 'التقارير' : 'Reports'}</span>
+              </NavLink>
+            </>
+          )}
+
+          {/* Language Toggle */}
+          <button onClick={toggleLanguage} className="language-toggle">
+            <span className="globe-icon">🌐</span>
+            <span>{language === 'ar' ? 'EN' : 'ع'}</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+// ─── Main App ───────────────────────────────────────────────────────────────
 function App() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const [language, setLanguage] = useState('ar');
   const [mortalityData, setMortalityData] = useState(null);
   const [historyData, setHistoryData] = useState([]);
-
+  const [medicationData, setMedicationData] = useState(null);
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
@@ -25,11 +117,10 @@ function App() {
 
   useEffect(() => {
     fetch('http://localhost:8000/api/history')
-    .then(res => res.json())
-    .then(data => setHistoryData(data))
-    .catch(err => console.error('Failed to load history:', err));
+      .then(res => res.json())
+      .then(data => setHistoryData(data))
+      .catch(err => console.error('Failed to load history:', err));
   }, []);
-
 
   const toggleLanguage = () => {
     const newLang = language === 'ar' ? 'en' : 'ar';
@@ -40,73 +131,16 @@ function App() {
   return (
     <Router>
       <div className="app">
-        {/* Professional Navigation Bar */}
-        <nav className="navbar">
-          <div className="navbar-container">
-            {/* Logo & Brand */}
-            <div className="navbar-brand">
-              <div className="logo">
-                <span className="logo-icon">🏥</span>
-              </div>
-              <div className="brand-text">
-                <h1 className="brand-title">
-                  {language === 'ar' ? 'نظام تحليل معدل الوفيات' : 'Mortality Analysis System'}
-                </h1>
-                <p className="brand-subtitle">
-                  {language === 'ar' ? 'تحليلات طبية متقدمة' : 'Advanced Medical Analytics'}
-                </p>
-              </div>
-            </div>
+        <Navbar language={language} toggleLanguage={toggleLanguage} />
 
-            {/* Navigation Links */}
-            <div className="navbar-menu">
-              <NavLink 
-                to="/" 
-                className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-                end
-              >
-                <span className="nav-icon">📊</span>
-                <span>{t('dashboard')}</span>
-              </NavLink>
-
-              <NavLink 
-                to="/upload" 
-                className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-              >
-                <span className="nav-icon">📤</span>
-                <span>{t('upload')}</span>
-              </NavLink>
-
-              <NavLink 
-                to="/analysis" 
-                className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-              >
-                <span className="nav-icon">📈</span>
-                <span>{t('analysis')}</span>
-              </NavLink>
-
-              <NavLink 
-                to="/reports" 
-                className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-              >
-                <span className="nav-icon">📄</span>
-                <span>{t('reports')}</span>
-              </NavLink>
-
-              {/* Language Toggle */}
-              <button onClick={toggleLanguage} className="language-toggle">
-                <span className="globe-icon">🌐</span>
-                <span>{language === 'ar' ? 'EN' : 'ع'}</span>
-              </button>
-            </div>
-          </div>
-        </nav>
-
-        {/* Main Content Area */}
         <main className="main-content">
           <div className="content-wrapper">
             <Routes>
-              <Route path="/" element={
+              {/* ── Home: system selector ── */}
+              <Route path="/" element={<Home language={language} />} />
+
+              {/* ── Mortality system ── */}
+              <Route path="/mortality/dashboard" element={
                 <Dashboard
                   data={mortalityData}
                   totalPatients={mortalityData?.totalPatients || 0}
@@ -115,19 +149,32 @@ function App() {
                   historyData={historyData}
                 />
               } />
-              <Route path="/upload" element={<Upload onDataLoaded={setMortalityData} />} />
-              <Route path="/analysis" element={<Analysis data={mortalityData} />} />
-              <Route path="/reports" element={<Reports data={mortalityData} language={language} />} />
+              <Route path="/mortality/upload" element={
+                <Upload onDataLoaded={setMortalityData} />
+              } />
+              <Route path="/mortality/reports" element={
+                <Reports data={mortalityData} language={language} />
+              } />
+
+              {/* ── Medication Error system ── */}
+              <Route path="/medication/upload" element={
+                <MedicationUpload onDataLoaded={setMedicationData} language={language} />
+              } />
+              <Route path="/medication/dashboard" element={
+                <MedicationDashboard data={medicationData} language={language} />
+              } />
+              <Route path="/medication/reports" element={
+                <MedicationReports data={medicationData} language={language} />
+              } />
             </Routes>
           </div>
         </main>
 
-        {/* Simple Footer */}
         <footer className="footer">
           <p className="footer-text">
-            {language === 'ar' 
-              ? '© 2026 نظام تحليل معدل الوفيات. جميع الحقوق محفوظة.' 
-              : '© 2026 Mortality Analysis System. All rights reserved.'}
+            {language === 'ar'
+              ? '© 2026 نظام التقارير الصحية الذكي. جميع الحقوق محفوظة.'
+              : '© 2026 Smart Healthcare Reporting System. All rights reserved.'}
           </p>
         </footer>
       </div>
