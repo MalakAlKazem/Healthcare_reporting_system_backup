@@ -271,10 +271,14 @@ class MedicationErrorCharts:
 
         counts = detection_data.get('counts', {})
         if not counts:
-            counts = {'Physician': 49, 'RN': 44, 'Pharmacist': 7}
+            counts = {'Pharmacist': 36, 'RN': 7, 'HN': 2}
 
-        labels = list(counts.keys())
-        sizes  = list(counts.values())
+        # Sort descending so largest slice gets first color
+        sorted_items = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        labels = [item[0] for item in sorted_items]
+        sizes  = [item[1] for item in sorted_items]
+        total  = sum(sizes)
+
         colors = [self.COLORS['light_blue'], self.COLORS['orange'],
                   self.COLORS['gray']][:len(labels)]
 
@@ -282,7 +286,8 @@ class MedicationErrorCharts:
         fig.patch.set_facecolor('white')
 
         ax.pie(sizes, labels=None, colors=colors,
-               autopct='%d%%', startangle=90,
+               autopct=lambda p: f'{round(p):.0f}%',
+               startangle=90,
                textprops={'fontsize': 16, 'fontweight': 'bold', 'color': 'white'},
                wedgeprops={'edgecolor': 'white', 'linewidth': 2, 'width': 0.5},
                pctdistance=0.75)
@@ -290,8 +295,8 @@ class MedicationErrorCharts:
         # White center hole
         ax.add_artist(plt.Circle((0, 0), 0.50, fc='white'))
 
-        legend_labels = [f'{lb} (result id)' for lb in labels]
-        ax.legend(legend_labels, loc='lower center', bbox_to_anchor=(0.5, -0.12),
+        pct_labels = [f'{lb}  ({sz} - {round(sz/total*100):.0f}%)' for lb, sz in zip(labels, sizes)]
+        ax.legend(pct_labels, loc='lower center', bbox_to_anchor=(0.5, -0.12),
                   ncol=3, frameon=False, fontsize=10)
         ax.axis('equal')
         plt.tight_layout()
@@ -305,10 +310,14 @@ class MedicationErrorCharts:
 
         counts = shift_data.get('counts', {})
         if not counts:
-            counts = {'Day': 76, 'Evening': 9, 'Night': 16}
+            counts = {'Day': 34, 'Night': 7, 'Evening': 4}
 
-        labels = list(counts.keys())
-        sizes  = list(counts.values())
+        # Sort descending so largest slice gets first color
+        sorted_items = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        labels = [item[0] for item in sorted_items]
+        sizes  = [item[1] for item in sorted_items]
+        total  = sum(sizes)
+
         colors = [self.COLORS['light_blue'], self.COLORS['orange'],
                   self.COLORS['gray']][:len(labels)]
 
@@ -316,14 +325,16 @@ class MedicationErrorCharts:
         fig.patch.set_facecolor('white')
 
         ax.pie(sizes, labels=None, colors=colors,
-               autopct='%d%%', startangle=90,
+               autopct=lambda p: f'{round(p):.0f}%',
+               startangle=90,
                textprops={'fontsize': 16, 'fontweight': 'bold', 'color': 'white'},
                wedgeprops={'edgecolor': 'white', 'linewidth': 2, 'width': 0.5},
                pctdistance=0.75)
 
         ax.add_artist(plt.Circle((0, 0), 0.50, fc='white'))
 
-        ax.legend(labels, loc='lower center', bbox_to_anchor=(0.5, -0.12),
+        pct_labels = [f'{lb}  ({sz} - {round(sz/total*100):.0f}%)' for lb, sz in zip(labels, sizes)]
+        ax.legend(pct_labels, loc='lower center', bbox_to_anchor=(0.5, -0.12),
                   ncol=3, frameon=False, fontsize=12)
         ax.axis('equal')
         plt.tight_layout()
@@ -337,26 +348,31 @@ class MedicationErrorCharts:
 
         counts = staff_data.get('counts', {})
         if not counts:
-            counts = {'RN': 80, 'Pharmacist': 16, 'Physician': 4}
+            counts = {'RN': 20, 'Physician': 23, 'Pharmacist': 2}
 
-        labels = list(counts.keys())
-        sizes  = list(counts.values())
-        colors = [self.COLORS['orange'], self.COLORS['gray'],
-                  self.COLORS['light_blue']][:len(labels)]
+        # Sort descending so largest slice gets first color
+        sorted_items = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        labels = [item[0] for item in sorted_items]
+        sizes  = [item[1] for item in sorted_items]
+        total  = sum(sizes)
+
+        colors = [self.COLORS['light_blue'], self.COLORS['orange'],
+                  self.COLORS['gray']][:len(labels)]
 
         fig, ax = plt.subplots(figsize=(8, 6))
         fig.patch.set_facecolor('white')
 
         ax.pie(sizes, labels=None, colors=colors,
-               autopct='%d%%', startangle=90,
+               autopct=lambda p: f'{round(p):.0f}%',
+               startangle=90,
                textprops={'fontsize': 16, 'fontweight': 'bold', 'color': 'white'},
                wedgeprops={'edgecolor': 'white', 'linewidth': 2, 'width': 0.5},
                pctdistance=0.75)
 
         ax.add_artist(plt.Circle((0, 0), 0.50, fc='white'))
 
-        legend_labels = [f'{lb} (result id)' for lb in labels]
-        ax.legend(legend_labels, loc='lower center', bbox_to_anchor=(0.5, -0.12),
+        pct_labels = [f'{lb}  ({sz} - {round(sz/total*100):.0f}%)' for lb, sz in zip(labels, sizes)]
+        ax.legend(pct_labels, loc='lower center', bbox_to_anchor=(0.5, -0.12),
                   ncol=3, frameon=False, fontsize=11)
         ax.axis('equal')
         plt.tight_layout()
