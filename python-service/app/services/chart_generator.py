@@ -64,7 +64,7 @@ class MatplotlibChartGenerator:
     def _fig_to_bytes(self, fig):
         """Convert to BytesIO"""
         buf = BytesIO()
-        fig.savefig(buf, format='png', dpi=300, bbox_inches='tight', 
+        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
                    facecolor='white', edgecolor='none')
         buf.seek(0)
         plt.close(fig)
