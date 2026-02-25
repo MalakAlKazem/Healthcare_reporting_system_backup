@@ -13,7 +13,7 @@ const quarters = [
   { value: 'الفصل الرابع', label: 'الفصل الرابع / Q4' },
 ];
 
-function MedicationUpload({ onDataLoaded, language }) {
+function MedicationUpload({ language }) {
   const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -61,11 +61,6 @@ function MedicationUpload({ onDataLoaded, language }) {
         },
       });
 
-      onDataLoaded({
-        ...response.data.data,
-        quarter,
-        year,
-      });
 
       setSuccess(true);
       setUploading(false);
@@ -75,7 +70,7 @@ function MedicationUpload({ onDataLoaded, language }) {
       setUploading(false);
       setProgress(0);
     }
-  }, [onDataLoaded, navigate, quarter, year, totalDoses, ar]);
+  }, [ navigate, quarter, year, totalDoses, ar]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
