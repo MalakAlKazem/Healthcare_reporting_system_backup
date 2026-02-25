@@ -107,7 +107,6 @@ function App() {
   const [language, setLanguage] = useState('ar');
   const [mortalityData, setMortalityData] = useState(null);
   const [historyData, setHistoryData] = useState([]);
-  const [medicationData, setMedicationData] = useState(null);
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
@@ -158,15 +157,17 @@ function App() {
 
               {/* ── Medication Error system ── */}
               <Route path="/medication/upload" element={
-                <MedicationUpload onDataLoaded={setMedicationData} language={language} />
-              } />
-              <Route path="/medication/dashboard" element={
-                <MedicationDashboard data={medicationData} language={language} />
-              } />
-              <Route path="/medication/reports" element={
-                <MedicationReports data={medicationData} language={language} />
-              } />
-            </Routes>
+                  <MedicationUpload language={language} />
+                } />
+
+                <Route path="/medication/dashboard" element={
+                  <MedicationDashboard language={language} />
+                } />
+
+                <Route path="/medication/reports" element={
+                  <MedicationReports language={language} />
+                } />
+              </Routes>
           </div>
         </main>
 

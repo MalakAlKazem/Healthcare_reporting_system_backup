@@ -80,15 +80,60 @@
   {
     "quarter": "الفصل الثالث",
     "year": "2024",
-    "error_rate": 0.01321,
-    "total_errors": 41,
-    "total_doses": 310336,
-    "error_cycle": {},
-    "detected_by": {},
-    "duty_shift": {},
-    "staff_involved": {},
-    "error_causes": {},
-    "departments": {}
+    "error_rate": 0.0104,
+    "total_errors": 45,
+    "total_doses": 431124,
+    "error_cycle": {
+      "Administration": 4,
+      "Dispensing": 2,
+      "Prescribing": 23,
+      "Transcription": 16
+    },
+    "detected_by": {
+      "HN": 2,
+      "Pharmacist": 36,
+      "RN": 7
+    },
+    "duty_shift": {
+      "Day": 34,
+      "Evening": 4,
+      "Night": 7
+    },
+    "staff_involved": {
+      "Pharmacist": 2,
+      "Physician": 23,
+      "RN": 20
+    },
+    "error_causes": {
+      "Work flow disruption": 17,
+      "Medication knowledge Deficiency": 13,
+      "Non adherence to guidelines": 9,
+      "non competent employee": 4,
+      "established treatment protcol deviation": 1,
+      "Monitoring": 1
+    },
+    "departments": {
+      "ER": 9,
+      "PED": 5,
+      "NICU": 4,
+      "4E": 3,
+      "4th W": 3,
+      "4N": 2,
+      "4W": 2,
+      "cardiac3": 2,
+      "3 EXT": 1,
+      "3rd EXT": 1,
+      "4th ext": 1,
+      "4th new": 1,
+      "4th north": 1,
+      "4th west": 1,
+      "CSU": 1,
+      "ER out": 1,
+      "ICU": 1,
+      "ICU ext": 1,
+      "ITCU": 1,
+      "New suite": 1
+    }
   },
   {
     "quarter": "الفصل الرابع",
