@@ -53,19 +53,26 @@ class MedicationErrorHistory:
         """
         logger.info(f"💾 Saving {quarter} {year}...")
         
-        # Create quarter entry
+        # Create quarter entry — store full stat objects so the DOCX
+        # generator and chart generator get counts + percentages + matrices
         quarter_data = {
             'quarter': quarter,
             'year': str(year),
-            'error_rate': stats['summary']['error_rate'],  # Already as percentage
+            'error_rate': stats['summary']['error_rate'],
             'total_errors': stats['summary']['total_errors'],
             'total_doses': stats['summary']['total_doses'],
-            'error_cycle': stats['error_cycle']['counts'],
-            'detected_by': stats['detected_by']['counts'],
-            'duty_shift': stats['duty_shift']['counts'],
-            'staff_involved': stats['staff_involved']['counts'],
-            'error_causes': stats['error_causes']['counts'],
-            'departments': stats['departments']['counts']
+            # Full objects (counts + percentages) for chart generator
+            'error_cycle':    stats.get('error_cycle', {}),
+            'detected_by':    stats.get('detected_by', {}),
+            'duty_shift':     stats.get('duty_shift', {}),
+            'staff_involved': stats.get('staff_involved', {}),
+            'error_causes':   stats.get('error_causes', {}),
+            'departments':    stats.get('departments', {}),
+            # Table data required by DOCX generator pages 2, 4, 5
+            'ncc_merp':           stats.get('ncc_merp', {}),
+            'cause_stage_matrix': stats.get('cause_stage_matrix', {}),
+            'type_stage_matrix':  stats.get('type_stage_matrix', {}),
+            'departments_all':    stats.get('departments_all', {}),
         }
         
         # Check if quarter already exists

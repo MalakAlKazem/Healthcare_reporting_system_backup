@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import styles from '../styles/Reports.module.css';
 
@@ -7,15 +7,59 @@ const API_URL = 'http://localhost:8000/api/medication';
 const TEAL = 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)';
 const TEAL_DARK = '#0f766e';
 
-function MedicationReports({ data, language }) {
+function MedicationReports({ language }) {
   const [reportType, setReportType] = useState('summary');
   const [generating, setGenerating] = useState(false);
   const [reportUrl, setReportUrl] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const ar = language === 'ar';
+
+  // Fetch history on mount
+  useEffect(() => {
+    axios.get(`${API_URL}/history`)
+      .then(res => {
+        const entries = Array.isArray(res.data) ? res.data : [];
+        setHistory(entries);
+        setSelectedIndex(entries.length > 0 ? entries.length - 1 : 0);
+      })
+      .catch(err => console.error('Failed to load medication history:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Build a data object from the selected history entry
+  const entry = history[selectedIndex] || null;
+  const data = entry
+    ? {
+        quarter: entry.quarter,
+        year: entry.year,
+        statistics: {
+          summary: {
+            total_errors: entry.total_errors,
+            total_doses: entry.total_doses,
+            error_rate: entry.error_rate,
+          },
+          // Full objects (counts + percentages) needed by chart generator
+          error_cycle:    entry.error_cycle    || {},
+          detected_by:    entry.detected_by    || {},
+          duty_shift:     entry.duty_shift      || {},
+          staff_involved: entry.staff_involved  || {},
+          error_causes:   entry.error_causes    || {},
+          departments:    entry.departments     || {},
+          // Matrix/table data needed by DOCX generator pages 2, 4, 5
+          ncc_merp:           entry.ncc_merp           || {},
+          cause_stage_matrix: entry.cause_stage_matrix || {},
+          type_stage_matrix:  entry.type_stage_matrix  || {},
+          departments_all:    entry.departments_all    || {},
+        },
+      }
+    : null;
 
   const handleGenerateReport = async () => {
     if (!data) return;
     setGenerating(true);
+    setReportUrl(null);
     try {
       const response = await axios.post(`${API_URL}/generate-report`, {
         data: { statistics: data.statistics },
@@ -34,7 +78,24 @@ function MedicationReports({ data, language }) {
     }
   };
 
-  // ── Empty state ──────────────────────────────────────────────────────────
+  // ── Loading state ─────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className={styles.emptyState} style={{ background: TEAL }}>
+        <div className={styles.emptyStateBackground} />
+        <div className={styles.emptyStateContent}>
+          <div className={styles.emptyStateIconWrapper}>
+            <span className={styles.emptyStateIcon}>⏳</span>
+          </div>
+          <h2 className={styles.emptyStateTitle}>
+            {ar ? 'جارٍ التحميل...' : 'Loading...'}
+          </h2>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Empty state ───────────────────────────────────────────────────────────
   if (!data) {
     return (
       <div className={styles.emptyState} style={{ background: TEAL }}>
@@ -100,9 +161,7 @@ function MedicationReports({ data, language }) {
     },
   ];
 
-  const records = data.records || [];
-
-  // ── Main view ────────────────────────────────────────────────────────────
+  // ── Main view ─────────────────────────────────────────────────────────────
   return (
     <div className={styles.reportsContainer}>
 
@@ -137,6 +196,7 @@ function MedicationReports({ data, language }) {
           </button>
         </div>
       </div>
+
 
       {/* Download link banner */}
       {reportUrl && (
@@ -199,7 +259,7 @@ function MedicationReports({ data, language }) {
             style={reportType === 'detailed' ? { background: TEAL } : {}}
           >
             <span className={styles.typeButtonIcon}>📋</span>
-            {ar ? 'البيانات التفصيلية' : 'Detailed Records'}
+            {ar ? 'توزيع الأخطاء' : 'Error Distribution'}
           </button>
         </div>
       </div>
@@ -276,7 +336,7 @@ function MedicationReports({ data, language }) {
         </div>
       )}
 
-      {/* ── Detailed records view ── */}
+      {/* ── Error distribution view ── */}
       {reportType === 'detailed' && (
         <div className={styles.reportCard}>
           <div className={styles.reportCardHeader}>
@@ -287,90 +347,83 @@ function MedicationReports({ data, language }) {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}>
-              {ar ? 'البيانات التفصيلية' : 'Detailed Records'}
+              {ar ? 'توزيع الأخطاء' : 'Error Distribution'}
             </h2>
           </div>
 
-          <div className={styles.tableWrapper}>
-            <div className={styles.tableContainer}>
-              <table className={styles.table}>
-                <thead className={styles.tableHead} style={{ background: TEAL }}>
-                  <tr className={styles.tableHeadRow}>
-                    {[
-                      { icon: '🔢', label: ar ? 'رقم' : '#' },
-                      { icon: '⚠️', label: ar ? 'نوع الخطأ' : 'Error Type' },
-                      { icon: '🔄', label: ar ? 'مرحلة الدورة' : 'Error Stage' },
-                      { icon: '👁️', label: ar ? 'الكاشف' : 'Detected By' },
-                      { icon: '🕐', label: ar ? 'الوردية' : 'Shift' },
-                    ].map((col, i) => (
-                      <th key={i} className={styles.tableHeadCell}>
-                        <div className={styles.tableHeadCellContent}>
-                          <span className={styles.tableHeadCellIcon}>{col.icon}</span>
-                          {col.label}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className={styles.tableBody}>
-                  {records.slice(0, 50).map((record, index) => (
-                    <tr key={index} className={styles.tableBodyRow}>
-                      <td className={styles.tableBodyCell}>
-                        <div className={styles.tableCellNumber}>
-                          <div
-                            className={styles.tableCellNumberBadge}
-                            style={{ background: TEAL }}
-                          >
-                            {index + 1}
-                          </div>
-                        </div>
-                      </td>
-                      <td className={styles.tableBodyCell}>
-                        <span className={styles.tableCellAge}>
-                          {record.error_type || record['Error type'] || '—'}
-                        </span>
-                      </td>
-                      <td className={styles.tableBodyCell}>
-                        <span className={styles.tableCellMonthBadge} style={{
-                          background: 'linear-gradient(135deg, #f0fdfa, #ccfbf1)',
-                          color: TEAL_DARK,
-                          borderColor: '#0d9488',
-                        }}>
-                          {record.error_cycle || record['Stage of medication process'] || '—'}
-                        </span>
-                      </td>
-                      <td className={styles.tableBodyCell}>
-                        <span className={styles.tableCellLOS}>
-                          {record.detected_by || record['Detected by'] || '—'}
-                        </span>
-                      </td>
-                      <td className={styles.tableBodyCell}>
-                        <span
-                          className={styles.tableCellGenderBadge}
-                          style={{ background: TEAL }}
-                        >
-                          {record.duty_shift || record['Duty shift'] || '—'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {/* Error Cycle distribution */}
+          <DistributionTable
+            title={ar ? 'مرحلة دورة الدواء' : 'Medication Process Stage'}
+            data={entry.error_cycle}
+            teal={TEAL} tealDark={TEAL_DARK} ar={ar}
+          />
 
-          {records.length > 50 && (
-            <div className={styles.tableInfoBanner}>
-              <p className={styles.tableInfoText}>
-                <span className={styles.tableInfoIcon}>ℹ️</span>
-                {ar
-                  ? `عرض أول 50 سجل من أصل ${records.length}`
-                  : `Showing first 50 records out of ${records.length}`}
-              </p>
-            </div>
-          )}
+          {/* Detected By distribution */}
+          <DistributionTable
+            title={ar ? 'كُشف بواسطة' : 'Detected By'}
+            data={entry.detected_by}
+            teal={TEAL} tealDark={TEAL_DARK} ar={ar}
+          />
+
+          {/* Duty Shift distribution */}
+          <DistributionTable
+            title={ar ? 'الوردية' : 'Duty Shift'}
+            data={entry.duty_shift}
+            teal={TEAL} tealDark={TEAL_DARK} ar={ar}
+          />
         </div>
       )}
+    </div>
+  );
+}
+
+// Small helper: renders a two-column (category / count) table
+// Accepts both old flat format {key:count} and new format {counts:{key:count}, ...}
+function DistributionTable({ title, data, teal, tealDark, ar }) {
+  const countsDict = (data && typeof data === 'object' && data.counts) ? data.counts : (data || {});
+  const rows = Object.entries(countsDict)
+    .map(([k, v]) => [k, Number(v)])
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const total = rows.reduce((s, [, v]) => s + v, 0);
+  if (rows.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: '1.5rem' }}>
+      <h3 style={{ color: tealDark, fontWeight: 700, marginBottom: '0.75rem' }}>{title}</h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <thead>
+            <tr style={{ background: teal, color: 'white' }}>
+              <th style={{ padding: '0.6rem 1rem', textAlign: ar ? 'right' : 'left' }}>
+                {ar ? 'التصنيف' : 'Category'}
+              </th>
+              <th style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>
+                {ar ? 'العدد' : 'Count'}
+              </th>
+              <th style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>
+                {ar ? 'النسبة' : '%'}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([key, val], i) => (
+              <tr key={i} style={{ background: i % 2 === 0 ? '#f0fdfa' : 'white' }}>
+                <td style={{ padding: '0.5rem 1rem', color: '#374151' }}>{key}</td>
+                <td style={{ padding: '0.5rem 1rem', textAlign: 'center', fontWeight: 600 }}>{val}</td>
+                <td style={{ padding: '0.5rem 1rem', textAlign: 'center', color: tealDark }}>
+                  {total > 0 ? ((val / total) * 100).toFixed(1) : '0'}%
+                </td>
+              </tr>
+            ))}
+            <tr style={{ background: '#ccfbf1', fontWeight: 700 }}>
+              <td style={{ padding: '0.5rem 1rem', color: tealDark }}>{ar ? 'الإجمالي' : 'Total'}</td>
+              <td style={{ padding: '0.5rem 1rem', textAlign: 'center', color: tealDark }}>{total}</td>
+              <td style={{ padding: '0.5rem 1rem', textAlign: 'center', color: tealDark }}>100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

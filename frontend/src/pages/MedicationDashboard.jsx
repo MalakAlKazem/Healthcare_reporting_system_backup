@@ -468,28 +468,31 @@ function MedicationDashboard({ language }) {
   const current = sorted[sorted.length - 1];
 
   // ── Flat distributions ─────────────────────────────────────────────────────
-  const cycleData = Object.entries(current.error_cycle || {})
+  // Support both old format (flat {key:count}) and new format ({counts:{...}})
+  const counts = (field) => (field && typeof field === 'object' && field.counts ? field.counts : field) || {};
+
+  const cycleData = Object.entries(counts(current.error_cycle))
     .map(([name, value]) => ({ name, value: Number(value) }))
     .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
 
-  const detectedData = Object.entries(current.detected_by || {})
+  const detectedData = Object.entries(counts(current.detected_by))
     .map(([name, value]) => ({ name, value: Number(value) }))
     .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
 
-  const shiftData = Object.entries(current.duty_shift || {})
+  const shiftData = Object.entries(counts(current.duty_shift))
     .map(([name, value]) => ({ name, value: Number(value) }))
     .filter(d => d.value > 0);
 
-  const staffData = Object.entries(current.staff_involved || {})
+  const staffData = Object.entries(counts(current.staff_involved))
     .map(([name, value]) => ({ name, value: Number(value) }))
     .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
 
-  const deptData = Object.entries(current.departments || {})
+  const deptData = Object.entries(counts(current.departments))
     .map(([dept, count]) => ({ dept, count: Number(count) }))
     .filter(d => d.count > 0).sort((a, b) => b.count - a.count);
   const totalDeptErrors = deptData.reduce((s, d) => s + d.count, 0);
 
-  const causesData = Object.entries(current.error_causes || {})
+  const causesData = Object.entries(counts(current.error_causes))
     .map(([cause, count]) => ({ cause, count: Number(count) }))
     .filter(d => d.count > 0).sort((a, b) => b.count - a.count);
   const totalCauses = causesData.reduce((s, d) => s + d.count, 0);
