@@ -1,0 +1,801 @@
+[
+  {
+    "year": 2024,
+    "quarter": 3,
+    "denominators": {
+      "ICU": 504,
+      "CCU": 230,
+      "CSU": 834,
+      "ICN": 269,
+      "Pediatric": 68,
+      "ITU": 53
+    },
+    "cases": [],
+    "summary": {
+      "ICU": {
+        "cases": 7,
+        "catheter_days": 504,
+        "rate": 13.8
+      },
+      "CCU": {
+        "cases": 4,
+        "catheter_days": 230,
+        "rate": 17.39
+      },
+      "CSU": {
+        "cases": 2,
+        "catheter_days": 834,
+        "rate": 2.39
+      },
+      "ICN": {
+        "cases": 0,
+        "catheter_days": 269,
+        "rate": 0.0
+      },
+      "Pediatric": {
+        "cases": 1,
+        "catheter_days": 68,
+        "rate": 14.7
+      },
+      "ITU": {
+        "cases": 0,
+        "catheter_days": 53,
+        "rate": 0.0
+      }
+    }
+  },
+  {
+    "year": 2024,
+    "quarter": 4,
+    "denominators": {
+      "ICU": 367,
+      "CCU": 17,
+      "CSU": 167,
+      "ICN": 32,
+      "Pediatric": 20,
+      "ITU": 6
+    },
+    "cases": [],
+    "summary": {
+      "ICU": {
+        "cases": 2,
+        "catheter_days": 367,
+        "rate": 5.44
+      },
+      "CCU": {
+        "cases": 0,
+        "catheter_days": 17,
+        "rate": 0.0
+      },
+      "CSU": {
+        "cases": 0,
+        "catheter_days": 167,
+        "rate": 0.0
+      },
+      "ICN": {
+        "cases": 0,
+        "catheter_days": 32,
+        "rate": 0.0
+      },
+      "Pediatric": {
+        "cases": 0,
+        "catheter_days": 20,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "catheter_days": 6,
+        "rate": 0.0
+      }
+    }
+  },
+  {
+    "year": 2025,
+    "quarter": 1,
+    "denominators": {
+      "ICU": 862,
+      "CCU": 351,
+      "CSU": 902,
+      "ICN": 238,
+      "Pediatric": 26,
+      "ITU": 25
+    },
+    "cases": [],
+    "summary": {
+      "ICU": {
+        "cases": 10,
+        "catheter_days": 862,
+        "rate": 10.4
+      },
+      "CCU": {
+        "cases": 3,
+        "catheter_days": 351,
+        "rate": 8.5
+      },
+      "CSU": {
+        "cases": 1,
+        "catheter_days": 902,
+        "rate": 1.1
+      },
+      "ICN": {
+        "cases": 2,
+        "catheter_days": 238,
+        "rate": 8.4
+      },
+      "Pediatric": {
+        "cases": 0,
+        "catheter_days": 26,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "catheter_days": 25,
+        "rate": 0.0
+      }
+    }
+  },
+  {
+    "year": 2025,
+    "quarter": 2,
+    "denominators": {
+      "ICU": 789,
+      "CCU": 260,
+      "CSU": 1036,
+      "ICN": 224,
+      "Pediatric": 104,
+      "ITU": 42
+    },
+    "cases": [],
+    "summary": {
+      "ICU": {
+        "cases": 12,
+        "catheter_days": 789,
+        "rate": 15.2
+      },
+      "CCU": {
+        "cases": 1,
+        "catheter_days": 260,
+        "rate": 3.84
+      },
+      "CSU": {
+        "cases": 1,
+        "catheter_days": 1036,
+        "rate": 0.96
+      },
+      "ICN": {
+        "cases": 0,
+        "catheter_days": 224,
+        "rate": 0.0
+      },
+      "Pediatric": {
+        "cases": 1,
+        "catheter_days": 104,
+        "rate": 9.61
+      },
+      "ITU": {
+        "cases": 0,
+        "catheter_days": 42,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {
+      "ICU": {
+        "Klebsiella CRE": 1,
+        "Acinetobacter baumanii": 2,
+        "Klebsiella ESBL": 2,
+        "MRSA": 1,
+        "E.coli CRE": 1,
+        "Enterococcus faecalis": 2,
+        "Chryseobacterium (R)": 1,
+        "Candida albicans": 1,
+        "Proteus ESBL": 1
+      },
+      "CCU": {
+        "Acinetobacter baumanii": 1
+      },
+      "CSU": {
+        "Candida albicans": 1
+      },
+      "ICN": {},
+      "Pediatric": {
+        "E.coli": 1
+      },
+      "ITU": {}
+    }
+  },
+  {
+    "year": 2025,
+    "quarter": 3,
+    "denominators": {
+      "ICU": 624,
+      "CCU": 244,
+      "CSU": 1082,
+      "ICN": 425,
+      "Pediatric": 178,
+      "ITU": 48
+    },
+    "cases": [],
+    "summary": {
+      "ICU": {
+        "cases": 5,
+        "catheter_days": 624,
+        "rate": 8.0
+      },
+      "CCU": {
+        "cases": 4,
+        "catheter_days": 244,
+        "rate": 16.39
+      },
+      "CSU": {
+        "cases": 1,
+        "catheter_days": 1082,
+        "rate": 0.92
+      },
+      "ICN": {
+        "cases": 1,
+        "catheter_days": 425,
+        "rate": 2.35
+      },
+      "Pediatric": {
+        "cases": 1,
+        "catheter_days": 178,
+        "rate": 5.61
+      },
+      "ITU": {
+        "cases": 0,
+        "catheter_days": 48,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {
+      "ICU": {
+        "Acinetobacter baumanii": 1,
+        "Klebsiella oxytoca": 1,
+        "Candida albicans": 1,
+        "Enterococcus faecalis": 1,
+        "Klebsiella CRE": 1
+      },
+      "CCU": {
+        "Klebsiella ESBL": 1,
+        "Staph epidermidis": 1,
+        "Proteus mirabilis": 1,
+        "Listeria monocytogenes": 1
+      },
+      "CSU": {
+        "Staph hemolyticus": 1
+      },
+      "ICN": {
+        "Streptococcus mitis": 1
+      },
+      "Pediatric": {
+        "Klebsiella pneumonia": 1
+      },
+      "ITU": {}
+    }
+  },
+  {
+    "year": 2025,
+    "quarter": 4,
+    "summary": {
+      "ICU": {
+        "cases": 55,
+        "catheter_days": 200,
+        "rate": 275.0
+      },
+      "CCU": {
+        "cases": 1,
+        "catheter_days": 30,
+        "rate": 33.33
+      },
+      "CSU": {
+        "cases": 6,
+        "catheter_days": 34,
+        "rate": 176.47
+      },
+      "ICN": {
+        "cases": 1,
+        "catheter_days": 50,
+        "rate": 20.0
+      },
+      "Pediatric": {
+        "cases": 0,
+        "catheter_days": 32,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "catheter_days": 10,
+        "rate": 0.0
+      }
+    },
+    "cases": [
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "1",
+        "Age/Year": "72",
+        "Diagnosis": "Pneumonia",
+        "Date of admission": "2025-04-09",
+        "Date of  insertion\nCentral line": "2025-09-27",
+        "Date of infection": "2025-06-10",
+        "Germs": "Enterococcus faecium",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "Yes",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "2",
+        "Age/Year": "96",
+        "Diagnosis": "Septic shock",
+        "Date of admission": "2025-09-28",
+        "Date of  insertion\nCentral line": "2025-10-14",
+        "Date of infection": "2025-10-20",
+        "Germs": "Klebsiella CRE",
+        "Type of line": "CV line",
+        "gender": "Female",
+        "Diabetic": "Yes",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "3",
+        "Age/Year": "76",
+        "Diagnosis": "Pleural effusion",
+        "Date of admission": "2025-11-10",
+        "Date of  insertion\nCentral line": "2025-10-13",
+        "Date of infection": "2025-10-21",
+        "Germs": "MRSA",
+        "Type of line": "Kmal",
+        "gender": "Male",
+        "Diabetic": "Yes",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "No",
+        "Heart disease": "Yes",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "Yes",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "4",
+        "Age/Year": "74",
+        "Diagnosis": "CVA",
+        "Date of admission": "2025-11-10",
+        "Date of  insertion\nCentral line": "2025-03-11",
+        "Date of infection": "2025-11-20",
+        "Germs": "Candida albicans",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "Yes",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "Yes",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "5",
+        "Age/Year": "34",
+        "Diagnosis": "Hip arthroplasty",
+        "Date of admission": "2025-11-14",
+        "Date of  insertion\nCentral line": "2025-11-20",
+        "Date of infection": "2025-11-25",
+        "Germs": "MRSA",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "No",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "Yes",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "No",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "6",
+        "Age/Year": "11",
+        "Diagnosis": "Brain tumor",
+        "Date of admission": "2025-01-11",
+        "Date of  insertion\nCentral line": "2025-11-18",
+        "Date of infection": "2025-12-18",
+        "Germs": "Klebsiella oxytoca",
+        "Type of line": "CV line",
+        "gender": "Female",
+        "Diabetic": "No",
+        "Hypertension": "No",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "No",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "7",
+        "Age/Year": "65",
+        "Diagnosis": "Mesenteric ischemia",
+        "Date of admission": "2025-12-14",
+        "Date of  insertion\nCentral line": "2025-12-23",
+        "Date of infection": "2025-12-28",
+        "Germs": "Acinetobacter Baumanii",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "8",
+        "Age/Year": "76",
+        "Diagnosis": "CVA",
+        "Date of admission": "2025-07-12",
+        "Date of  insertion\nCentral line": "2025-12-13",
+        "Date of infection": "2025-12-31",
+        "Germs": "Acinetobacter lwoffii",
+        "Type of line": "Picline",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "No",
+        "Heart disease": "Yes",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "Yes",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "9",
+        "Age/Year": "81",
+        "Diagnosis": "Septic shock",
+        "Date of admission": "2025-12-20",
+        "Date of  insertion\nCentral line": "2025-12-23",
+        "Date of infection": "2025-12-31",
+        "Germs": "Acinetobacter Baumanii",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "No",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICU",
+        "Nb of cases": "10",
+        "Age/Year": "79",
+        "Diagnosis": "COPD",
+        "Date of admission": "2025-12-24",
+        "Date of  insertion\nCentral line": "2025-12-27",
+        "Date of infection": "2025-12-31",
+        "Germs": "Candida tropicalis",
+        "Type of line": "CV line",
+        "gender": "Female",
+        "Diabetic": "No",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "Yes",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "CCU",
+        "Nb of cases": "1",
+        "Age/Year": "84",
+        "Diagnosis": "Heart failure",
+        "Date of admission": "2025-10-31",
+        "Date of  insertion\nCentral line": "2025-02-11",
+        "Date of infection": "2025-06-11",
+        "Germs": "Gemella morbillorum",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "Yes",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "No",
+        "Heart disease": "Yes",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "Yes",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "CSU",
+        "Nb of cases": "1",
+        "Age/Year": "14",
+        "Diagnosis": "Heart failure",
+        "Date of admission": "2025-04-10",
+        "Date of  insertion\nCentral line": "2025-06-10",
+        "Date of infection": "2025-09-10",
+        "Germs": "Acinetobacter Baumanii",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "No",
+        "Dyslipidemia": "No",
+        "Heart disease": "Yes",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "No",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "Yes",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "CSU",
+        "Nb of cases": "2",
+        "Age/Year": "38",
+        "Diagnosis": "Polytrauma",
+        "Date of admission": "2025-10-15",
+        "Date of  insertion\nCentral line": "2025-10-15",
+        "Date of infection": "2025-10-19",
+        "Germs": "MRSA",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "No",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "No",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "CSU",
+        "Nb of cases": "3",
+        "Age/Year": "65",
+        "Diagnosis": "Aortic dissection",
+        "Date of admission": "2025-09-11",
+        "Date of  insertion\nCentral line": "2025-09-11",
+        "Date of infection": "2025-11-20",
+        "Germs": "Acinetobacter Baumanii",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "Yes",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "Yes",
+        "Cardiac congenital malformation": "No",
+        "Advanced age": "No",
+        "length of stay": "No",
+        "Duration of catheter": "Yes",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      },
+      {
+        "year": "2025",
+        "Semester": "Fourth",
+        "type of infection": "CLABSI",
+        "Floor": "ICN",
+        "Nb of cases": "1",
+        "Age/Year": "3 months",
+        "Diagnosis": "Congenital heart disease",
+        "Date of admission": "2025-10-16",
+        "Date of  insertion\nCentral line": "2025-10-31",
+        "Date of infection": "2025-11-22",
+        "Germs": "Pseudomonas aeruginosa",
+        "Type of line": "CV line",
+        "gender": "Male",
+        "Diabetic": "No",
+        "Hypertension": "No",
+        "Dyslipidemia": "No",
+        "Heart disease": "No",
+        "kidney disease": "No",
+        "COPD": "No",
+        "Smoker": "No",
+        "Obesity": "No",
+        "Cardiac congenital malformation": "Yes",
+        "Advanced age": "No",
+        "length of stay": "No",
+        "Duration of catheter": "No",
+        "cancer": "No",
+        "Compromised immune system": "No",
+        "Respiratory Pb": "No",
+        "Calculated catheter duration": null
+      }
+    ],
+    "germs_distribution": {
+      "ICU": {
+        "Enterococcus faecium": 1,
+        "Klebsiella CRE": 2,
+        "MRSA": 8,
+        "Candida albicans": 4,
+        "Klebsiella oxytoca": 6,
+        "Acinetobacter Baumanii": 16,
+        "Acinetobacter lwoffii": 8,
+        "Candida tropicalis": 10
+      },
+      "CCU": {
+        "Gemella morbillorum": 1
+      },
+      "CSU": {
+        "Acinetobacter Baumanii": 4,
+        "MRSA": 2
+      },
+      "ICN": {
+        "Pseudomonas aeruginosa": 1
+      }
+    }
+  }
+]

@@ -227,3 +227,62 @@
     font-size: 1.25rem;
   }
 }
+
+/* ── Infection Control Card (green) ─────────────────────────────────────── */
+.infectionCard {
+  background: linear-gradient(145deg, #16a34a 0%, #15803d 50%, #166534 100%);
+  color: white;
+  cursor: default;
+}
+
+.infectionCard:hover {
+  transform: none;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+}
+
+.infectionCard:hover .cardGlow {
+  opacity: 1;
+  background: radial-gradient(circle at 70% 20%, rgba(255,255,255,0.18) 0%, transparent 60%);
+}
+
+.infectionCard .cardIcon {
+  animation-delay: 0.8s;
+}
+
+/* ── Infection indicator buttons (VAP / CLABSI / CAUTI) ─────────────────── */
+.indicatorBtn {
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: white;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.indicatorBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.38);
+  transform: translateY(-2px);
+}
+
+.indicatorBtnDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── 3-card grid: first two side by side, third centered ────────────────── */
+@media (min-width: 769px) {
+  .cardsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .infectionCard {
+    grid-column: 1 / -1;
+    max-width: 520px;
+    justify-self: center;
+    width: 100%;
+  }
+}

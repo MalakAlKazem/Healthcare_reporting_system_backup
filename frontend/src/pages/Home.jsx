@@ -23,6 +23,7 @@ function Home({ language }) {
 
       {/* System Cards */}
       <div className={styles.cardsGrid}>
+
         {/* Mortality Card */}
         <button
           className={`${styles.systemCard} ${styles.mortalityCard}`}
@@ -74,6 +75,38 @@ function Home({ language }) {
             <span className={styles.ctaArrow}>{language === 'ar' ? '←' : '→'}</span>
           </div>
         </button>
+
+        {/* Infection Control Card */}
+        <div className={`${styles.systemCard} ${styles.infectionCard}`}>
+          <div className={styles.cardGlow} />
+          <div className={styles.cardIcon}>🦠</div>
+          <h2 className={styles.cardTitle}>
+            {language === 'ar' ? 'نظام مكافحة العدوى' : 'Infection Control System'}
+          </h2>
+          <p className={styles.cardDescription}>
+            {language === 'ar'
+              ? 'رصد وتحليل مؤشرات مكافحة العدوى (VAP, CLABSI, CAUTI) وإصدار تقارير الوقاية'
+              : 'Monitor and analyze infection control indicators (VAP, CLABSI, CAUTI) and generate prevention reports'}
+          </p>
+          <div className={styles.cardFeatures}>
+            <button
+              className={styles.indicatorBtn}
+              onClick={() => navigate('/vap/upload')}
+            >
+              🫁 VAP
+            </button>
+            <button
+              className={styles.indicatorBtn}
+              onClick={() => navigate('/clabsi/upload')}
+            >
+              🩸 CLABSI
+            </button>
+            <button className={`${styles.indicatorBtn} ${styles.indicatorBtnDisabled}`} disabled>
+              🧪 CAUTI
+            </button>
+          </div>
+        </div>
+
       </div>
 
       {/* Footer note */}

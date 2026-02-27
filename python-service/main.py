@@ -13,6 +13,8 @@ import os
 # Import API routes
 from app.api.routes import router
 from app.api.medication_routes import router as medication_router
+from app.api.vap_routes import router as vap_router
+from app.api.clabsi_routes import router as clabsi_router
 
 # Configure logging
 logger.remove()
@@ -51,6 +53,8 @@ app.add_middleware(
 # Include API routes
 app.include_router(router, prefix="/api")
 app.include_router(medication_router, prefix="/api/medication")
+app.include_router(vap_router)          # prefix "/api/vap" already set in the router
+app.include_router(clabsi_router)       # prefix "/api/clabsi" already set in the router
 
 
 @app.get("/health")

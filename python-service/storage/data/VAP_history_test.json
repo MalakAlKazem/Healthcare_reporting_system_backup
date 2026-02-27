@@ -1,0 +1,572 @@
+[
+  {
+    "quarter": "الفصل الثالث",
+    "year": "2024",
+    "total_cases": 14,
+    "total_vent_days": 1292,
+    "floors": {
+      "ICU": {
+        "cases": 11,
+        "ventilator_days": 861,
+        "rate": 12.78,
+        "target": 25.0
+      },
+      "CCU": {
+        "cases": 2,
+        "ventilator_days": 254,
+        "rate": 7.87,
+        "target": 15.0
+      },
+      "CSU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 9.5
+      },
+      "Ped": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 5.5
+      },
+      "ICN": {
+        "cases": 1,
+        "ventilator_days": 177,
+        "rate": 5.65,
+        "target": 10.0
+      },
+      "ITU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 25.0
+      },
+      "Neonatal": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 0.0
+      }
+    },
+    "germs_overall": {
+      "counts": {
+        "Acinetobacter Baumanii": 2,
+        "Klebsiella CRE": 4,
+        "Pseudomonas aeruginosa": 2,
+        "Klebsiella ESBL": 1
+      },
+      "percentages": {
+        "Acinetobacter Baumanii": 22.2,
+        "Klebsiella CRE": 44.4,
+        "Pseudomonas aeruginosa": 22.2,
+        "Klebsiella ESBL": 11.1
+      },
+      "total": 9
+    },
+    "germs_by_floor": {
+      "ICU": {
+        "counts": {
+          "Acinetobacter Baumanii": 5,
+          "Klebsiella CRE": 4,
+          "Pseudomonas aeruginosa": 2
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 45.5,
+          "Klebsiella CRE": 36.4,
+          "Pseudomonas aeruginosa": 18.2
+        },
+        "total": 11
+      },
+      "CCU": {
+        "counts": {
+          "Acinetobacter Baumanii": 2
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 100.0
+        },
+        "total": 2
+      },
+      "ICN": {
+        "counts": {
+          "Klebsiella ESBL": 1
+        },
+        "percentages": {
+          "Klebsiella ESBL": 100.0
+        },
+        "total": 1
+      }
+    }
+  },
+  {
+    "quarter": "الفصل الرابع",
+    "year": "2024",
+    "total_cases": 1,
+    "total_vent_days": 566,
+    "floors": {
+      "ICU": {
+        "cases": 1,
+        "ventilator_days": 483,
+        "rate": 2.07,
+        "target": 25.0
+      },
+      "CCU": {
+        "cases": 0,
+        "ventilator_days": 55,
+        "rate": 0.0,
+        "target": 15.0
+      },
+      "CSU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 9.5
+      },
+      "Ped": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 5.5
+      },
+      "ICN": {
+        "cases": 0,
+        "ventilator_days": 28,
+        "rate": 0.0,
+        "target": 10.0
+      },
+      "ITU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 25.0
+      },
+      "Neonatal": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 0.0
+      }
+    },
+    "germs_overall": {
+      "counts": {
+        "Klebsiella CRE": 1
+      },
+      "percentages": {
+        "Klebsiella CRE": 100.0
+      },
+      "total": 1
+    },
+    "germs_by_floor": {
+      "ICU": {
+        "counts": {
+          "Klebsiella CRE": 1
+        },
+        "percentages": {
+          "Klebsiella CRE": 100.0
+        },
+        "total": 1
+      }
+    }
+  },
+  {
+    "quarter": "الفصل الأول",
+    "year": "2025",
+    "total_cases": 11,
+    "total_vent_days": 1335,
+    "floors": {
+      "ICU": {
+        "cases": 9,
+        "ventilator_days": 871,
+        "rate": 10.33,
+        "target": 25.0
+      },
+      "CCU": {
+        "cases": 0,
+        "ventilator_days": 302,
+        "rate": 0.0,
+        "target": 15.0
+      },
+      "CSU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 9.5
+      },
+      "Ped": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 5.5
+      },
+      "ICN": {
+        "cases": 2,
+        "ventilator_days": 162,
+        "rate": 12.35,
+        "target": 10.0
+      },
+      "ITU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 25.0
+      },
+      "Neonatal": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 0.0
+      }
+    },
+    "germs_overall": {
+      "counts": {
+        "Acinetobacter Baumanii": 1,
+        "Klebsiella ESBL": 3,
+        "Pseudomonas aeruginosa": 1,
+        "Klebsiella CRE": 1
+      },
+      "percentages": {
+        "Acinetobacter Baumanii": 16.7,
+        "Klebsiella ESBL": 50.0,
+        "Pseudomonas aeruginosa": 16.7,
+        "Klebsiella CRE": 16.7
+      },
+      "total": 6
+    },
+    "germs_by_floor": {
+      "ICU": {
+        "counts": {
+          "Acinetobacter Baumanii": 5,
+          "Klebsiella ESBL": 3,
+          "Pseudomonas aeruginosa": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 55.6,
+          "Klebsiella ESBL": 33.3,
+          "Pseudomonas aeruginosa": 11.1
+        },
+        "total": 9
+      },
+      "ICN": {
+        "counts": {
+          "Acinetobacter Baumanii": 1,
+          "Klebsiella CRE": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 50.0,
+          "Klebsiella CRE": 50.0
+        },
+        "total": 2
+      }
+    }
+  },
+  {
+    "quarter": "الفصل الثاني",
+    "year": "2025",
+    "total_cases": 9,
+    "total_vent_days": 1132,
+    "floors": {
+      "ICU": {
+        "cases": 4,
+        "ventilator_days": 705,
+        "rate": 5.67,
+        "target": 25.0
+      },
+      "CCU": {
+        "cases": 3,
+        "ventilator_days": 267,
+        "rate": 11.24,
+        "target": 15.0
+      },
+      "CSU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 9.5
+      },
+      "Ped": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 5.5
+      },
+      "ICN": {
+        "cases": 2,
+        "ventilator_days": 160,
+        "rate": 12.5,
+        "target": 10.0
+      },
+      "ITU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 25.0
+      },
+      "Neonatal": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 0.0
+      }
+    },
+    "germs_overall": {
+      "counts": {
+        "Acinetobacter Baumanii": 2,
+        "Xanthomonas maltophilia": 2,
+        "Proteus ESBL": 1,
+        "Klebsiella CRE": 1
+      },
+      "percentages": {
+        "Acinetobacter Baumanii": 33.3,
+        "Xanthomonas maltophilia": 33.3,
+        "Proteus ESBL": 16.7,
+        "Klebsiella CRE": 16.7
+      },
+      "total": 6
+    },
+    "germs_by_floor": {
+      "ICU": {
+        "counts": {
+          "Acinetobacter Baumanii": 1,
+          "Xanthomonas maltophilia": 1,
+          "Proteus ESBL": 1,
+          "Klebsiella CRE": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 25.0,
+          "Xanthomonas maltophilia": 25.0,
+          "Proteus ESBL": 25.0,
+          "Klebsiella CRE": 25.0
+        },
+        "total": 4
+      },
+      "CCU": {
+        "counts": {
+          "Acinetobacter Baumanii": 2,
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 66.7,
+          "Xanthomonas maltophilia": 33.3
+        },
+        "total": 3
+      },
+      "ICN": {
+        "counts": {
+          "Xanthomonas maltophilia": 2
+        },
+        "percentages": {
+          "Xanthomonas maltophilia": 100.0
+        },
+        "total": 2
+      }
+    }
+  },
+  {
+    "quarter": "الفصل الثالث",
+    "year": "2025",
+    "total_cases": 3,
+    "total_vent_days": 1088,
+    "floors": {
+      "ICU": {
+        "cases": 1,
+        "ventilator_days": 650,
+        "rate": 1.54,
+        "target": 25.0
+      },
+      "CCU": {
+        "cases": 1,
+        "ventilator_days": 229,
+        "rate": 4.37,
+        "target": 15.0
+      },
+      "CSU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 9.5
+      },
+      "Ped": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 5.5
+      },
+      "ICN": {
+        "cases": 1,
+        "ventilator_days": 209,
+        "rate": 4.78,
+        "target": 10.0
+      },
+      "ITU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 25.0
+      },
+      "Neonatal": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 0.0
+      }
+    },
+    "germs_overall": {
+      "counts": {
+        "Proteus ESBL": 1,
+        "Xanthomonas maltophilia": 1
+      },
+      "percentages": {
+        "Proteus ESBL": 50.0,
+        "Xanthomonas maltophilia": 50.0
+      },
+      "total": 2
+    },
+    "germs_by_floor": {
+      "ICU": {
+        "counts": {
+          "Proteus ESBL": 1
+        },
+        "percentages": {
+          "Proteus ESBL": 100.0
+        },
+        "total": 1
+      },
+      "CCU": {
+        "counts": {
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Xanthomonas maltophilia": 100.0
+        },
+        "total": 1
+      },
+      "ICN": {
+        "counts": {
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Xanthomonas maltophilia": 100.0
+        },
+        "total": 1
+      }
+    }
+  },
+  {
+    "quarter": "الفصل الرابع",
+    "year": "2025",
+    "total_cases": 10,
+    "total_vent_days": 1760,
+    "floors": {
+      "ICU": {
+        "cases": 2,
+        "ventilator_days": 650,
+        "rate": 3.08,
+        "target": 25.0
+      },
+      "CCU": {
+        "cases": 4,
+        "ventilator_days": 480,
+        "rate": 8.33,
+        "target": 15.0
+      },
+      "CSU": {
+        "cases": 1,
+        "ventilator_days": 120,
+        "rate": 8.33,
+        "target": 9.5
+      },
+      "Ped": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 5.5
+      },
+      "ICN": {
+        "cases": 3,
+        "ventilator_days": 310,
+        "rate": 9.68,
+        "target": 10.0
+      },
+      "ITU": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 25.0
+      },
+      "Neonatal": {
+        "cases": 0,
+        "ventilator_days": 200,
+        "rate": 0.0,
+        "target": 0.0
+      }
+    },
+    "germs_overall": {
+      "counts": {
+        "Acinetobacter Baumanii": 3,
+        "Pseudomonas aeruginsa": 2,
+        "Xanthomonas maltophilia": 2,
+        "Klebsiella ESBL": 1,
+        "Klebsiella CRE": 1,
+        "Enterobacter CRE": 1
+      },
+      "percentages": {
+        "Acinetobacter Baumanii": 30.0,
+        "Pseudomonas aeruginsa": 20.0,
+        "Xanthomonas maltophilia": 20.0,
+        "Klebsiella ESBL": 10.0,
+        "Klebsiella CRE": 10.0,
+        "Enterobacter CRE": 10.0
+      },
+      "total": 10
+    },
+    "germs_by_floor": {
+      "ICU": {
+        "counts": {
+          "Klebsiella ESBL": 1,
+          "Acinetobacter Baumanii": 1
+        },
+        "percentages": {
+          "Klebsiella ESBL": 50.0,
+          "Acinetobacter Baumanii": 50.0
+        },
+        "total": 2
+      },
+      "CCU": {
+        "counts": {
+          "Acinetobacter Baumanii": 1,
+          "Klebsiella CRE": 1,
+          "Pseudomonas aeruginsa": 1,
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 25.0,
+          "Klebsiella CRE": 25.0,
+          "Pseudomonas aeruginsa": 25.0,
+          "Xanthomonas maltophilia": 25.0
+        },
+        "total": 4
+      },
+      "CSU": {
+        "counts": {
+          "Acinetobacter Baumanii": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 100.0
+        },
+        "total": 1
+      },
+      "ICN": {
+        "counts": {
+          "Enterobacter CRE": 1,
+          "Pseudomonas aeruginsa": 1,
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Enterobacter CRE": 33.3,
+          "Pseudomonas aeruginsa": 33.3,
+          "Xanthomonas maltophilia": 33.3
+        },
+        "total": 3
+      }
+    }
+  }
+]

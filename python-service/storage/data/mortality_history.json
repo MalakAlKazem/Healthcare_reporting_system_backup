@@ -1,4 +1,46 @@
-[
+[ {
+    "quarter": "الفصل الثالث",
+    "year": "2022",
+    "rate": 1.79,
+    "deaths": 105,
+    "total_patients": 5868,
+    "age_groups": [
+      9,
+      0,
+      1,
+      7,
+      9,
+      19,
+      31,
+      29
+    ],
+    "departments": {
+      "ICU": 42,
+      "CCU": 18,
+      "CSU": 17,
+      "ITCU": 12,
+      "ICN": 8,
+      "ER": 4,
+      "New cardiac": 2,
+      "North 3": 1,
+      "C2": 1
+    },
+    "who_categories": {
+      "cardiovascular disease": 34,
+      "genitourinarydiseases": 11,
+      "injuries": 11,
+      "malignant neoplasms": 9,
+      "congenital  anomalies": 7,
+      "infectious and parasitic diseases": 6,
+      "defined disease": 6,
+      "digestive diseases": 6,
+      "respiratory diseases": 6,
+      "neuropsychiatric conditions": 3,
+      "Infection following a procedure, not elsewhere classified": 3,
+      "perinatal conditions": 2,
+      "diabetes mellitus and endocrine disorders": 1
+    }
+  },
   {
     "quarter": "الفصل الأول",
     "year": "2023",
@@ -485,50 +527,7 @@
     "year": "2025",
     "rate": 1.79,
     "deaths": 105,
-    "total_patients": 5856,
-    "age_groups": [
-      9,
-      0,
-      1,
-      7,
-      9,
-      19,
-      31,
-      29
-    ],
-    "departments": {
-      "ICU": 42,
-      "CCU": 18,
-      "CSU": 17,
-      "ITCU": 12,
-      "ICN": 8,
-      "ER": 4,
-      "New cardiac": 2,
-      "North 3": 1,
-      "C2": 1
-    },
-    "who_categories": {
-      "cardiovascular disease": 34,
-      "genitourinarydiseases": 11,
-      "injuries": 11,
-      "malignant neoplasms": 9,
-      "congenital  anomalies": 7,
-      "infectious and parasitic diseases": 6,
-      "defined disease": 6,
-      "digestive diseases": 6,
-      "respiratory diseases": 6,
-      "neuropsychiatric conditions": 3,
-      "Infection following a procedure, not elsewhere classified": 3,
-      "perinatal conditions": 2,
-      "diabetes mellitus and endocrine disorders": 1
-    }
-  },
-  {
-    "quarter": "الفصل الثالث",
-    "year": "2022",
-    "rate": 1.79,
-    "deaths": 105,
-    "total_patients": 5868,
+    "total_patients": 5854,
     "age_groups": [
       9,
       0,

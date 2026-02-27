@@ -12,6 +12,11 @@ import Reports from './pages/Reports';
 import MedicationUpload from './pages/MedicationUpload';
 import MedicationDashboard from './pages/MedicationDashboard';
 import MedicationReports from './pages/MedicationReports';
+import VapUpload from './pages/VapUpload';
+import VapDashboard from './pages/VapDashboard';
+import VapReports from './pages/VapReports';
+import ClabsiUpload from './pages/ClabsiUpload';
+import ClabsiDashboard from './pages/ClabsiDashboard';
 
 // ─── Navbar: changes based on current route section ────────────────────────
 function Navbar({ language, toggleLanguage }) {
@@ -22,6 +27,8 @@ function Navbar({ language, toggleLanguage }) {
 
   const isMortality = location.pathname.startsWith('/mortality');
   const isMedication = location.pathname.startsWith('/medication');
+  const isVap = location.pathname.startsWith('/vap');
+  const isClabsi = location.pathname.startsWith('/clabsi');
   const isHome = location.pathname === '/';
 
   return (
@@ -42,7 +49,11 @@ function Navbar({ language, toggleLanguage }) {
                 ? (ar ? 'نظام تحليل معدل الوفيات' : 'Mortality Analysis System')
                 : isMedication
                   ? (ar ? 'نظام أخطاء الدواء' : 'Medication Error System')
-                  : (ar ? 'نظام التقارير الصحية' : 'Healthcare Reporting System')}
+                  : isVap
+                    ? (ar ? 'نظام مكافحة العدوى' : 'Infection Control System')
+                    : isClabsi
+                      ? (ar ? 'نظام مكافحة العدوى' : 'Infection Control System')
+                      : (ar ? 'نظام التقارير الصحية' : 'Healthcare Reporting System')}
             </h1>
             <p className="brand-subtitle">
               {ar ? 'تحليلات طبية متقدمة' : 'Advanced Medical Analytics'}
@@ -68,6 +79,38 @@ function Navbar({ language, toggleLanguage }) {
               <NavLink to="/mortality/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                 <span className="nav-icon">📄</span>
                 <span>{t('reports')}</span>
+              </NavLink>
+            </>
+          )}
+
+          {/* VAP / Infection Control section links */}
+          {isVap && (
+            <>
+              <NavLink to="/vap/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📊</span>
+                <span>{ar ? 'لوحة البيانات' : 'Dashboard'}</span>
+              </NavLink>
+              <NavLink to="/vap/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📤</span>
+                <span>{ar ? 'رفع البيانات' : 'Upload'}</span>
+              </NavLink>
+              <NavLink to="/vap/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📄</span>
+                <span>{ar ? 'التقارير' : 'Reports'}</span>
+              </NavLink>
+            </>
+          )}
+
+          {/* CLABSI / Infection Control section links */}
+          {isClabsi && (
+            <>
+              <NavLink to="/clabsi/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📊</span>
+                <span>{ar ? 'لوحة البيانات' : 'Dashboard'}</span>
+              </NavLink>
+              <NavLink to="/clabsi/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-icon">📤</span>
+                <span>{ar ? 'رفع البيانات' : 'Upload'}</span>
               </NavLink>
             </>
           )}
@@ -154,6 +197,15 @@ function App() {
               <Route path="/mortality/reports" element={
                 <Reports data={mortalityData} language={language} />
               } />
+
+              {/* ── Infection Control / VAP system ── */}
+              <Route path="/vap/upload" element={<VapUpload language={language} />} />
+              <Route path="/vap/dashboard" element={<VapDashboard language={language} />} />
+              <Route path="/vap/reports" element={<VapReports language={language} />} />
+
+              {/* ── Infection Control / CLABSI system ── */}
+              <Route path="/clabsi/upload" element={<ClabsiUpload language={language} />} />
+              <Route path="/clabsi/dashboard" element={<ClabsiDashboard language={language} />} />
 
               {/* ── Medication Error system ── */}
               <Route path="/medication/upload" element={

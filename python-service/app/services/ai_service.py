@@ -62,6 +62,7 @@ class AIAnalysisService:
                 n_ctx=1024,
                 n_threads=n_threads,
                 n_batch=512,
+                n_gpu_layers=-1,
                 verbose=False
             )
             logger.success("Qwen2.5 model loaded successfully.")
