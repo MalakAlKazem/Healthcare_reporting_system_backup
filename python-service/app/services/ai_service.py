@@ -56,11 +56,11 @@ class AIAnalysisService:
             return False
         try:
             logger.info(f"Loading Qwen2.5 model from {MODEL_PATH} ...")
-            n_threads = min(8, multiprocessing.cpu_count())
+            
             self._llm = Llama(
                 model_path=MODEL_PATH,
                 n_ctx=1024,
-                n_threads=n_threads,
+                n_threads_batch=4,
                 n_batch=512,
                 n_gpu_layers=-1,
                 verbose=False

@@ -120,9 +120,10 @@ class MedicationErrorAIService:
             self._llm = Llama(
                 model_path=MODEL_PATH,
                 n_ctx=1024,
-                n_threads=multiprocessing.cpu_count(),
-                n_batch=256,
+                n_threads_batch=4,
+                n_batch=512,
                 use_mlock=False,
+                n_gpu_layers=-1,
                 verbose=False,
             )
             logger.success("Model loaded.")

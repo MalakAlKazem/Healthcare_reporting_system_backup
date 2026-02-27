@@ -1,4 +1,5 @@
-[ {
+[
+  {
     "quarter": "الفصل الثالث",
     "year": "2022",
     "rate": 1.79,
@@ -527,7 +528,7 @@
     "year": "2025",
     "rate": 1.79,
     "deaths": 105,
-    "total_patients": 5854,
+    "total_patients": 5856,
     "age_groups": [
       9,
       0,

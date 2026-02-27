@@ -19,7 +19,9 @@ from docx.oxml import OxmlElement
 import os
 
 from loguru import logger
+import re
 from app.medication_error.chart_generator import MedicationErrorCharts
+from app.medication_error.medication_error_ai_service import medication_error_ai_service
 
 # =============================================================================
 # FONTS
@@ -75,6 +77,8 @@ class MedicationErrorDocxGenerator:
         Returns:
             dict with 'filePath' and 'fileName'
         """
+        if 'statistics' in (stats or {}):
+            stats = stats['statistics']
         options  = options or {}
         summary  = stats.get('summary', {})
         quarter  = options.get('quarter', summary.get('quarter', 'الفصل الثالث'))
@@ -102,9 +106,9 @@ class MedicationErrorDocxGenerator:
         self._setup_section(doc.sections[0])
 
         self._build_page1(doc, quarter, year, stats, charts, history or [])
-        self._build_page2(doc, charts, stats)
-        self._build_page3(doc, charts)
-        self._build_page4(doc, charts, stats)
+        self._build_page2(doc, charts, stats, history=history or [])
+        self._build_page3(doc, charts, stats=stats)
+        self._build_page4(doc, charts, stats, history=history or [])
         self._build_page5(doc, stats)
         self._build_last_page(doc)
 
@@ -235,7 +239,7 @@ class MedicationErrorDocxGenerator:
         doc.add_paragraph()
         self._add_results_table(doc, stats, history)
         self._add_spacer(doc)
-        self._add_analysis_box(doc, quarter, year, stats, charts)
+        self._add_analysis_box(doc, quarter, year, stats, charts, history=history)
 
     def _add_metadata_table(self, doc, quarter, year):
         """
@@ -391,12 +395,14 @@ class MedicationErrorDocxGenerator:
             self._set_cell_border(table.cell(r, COLS - 1),  right=BORDER_THICK,
                                   top=BORDER_THIN, left=BORDER_THIN,  bottom=BORDER_THIN)
 
-    def _add_analysis_box(self, doc, quarter, year, stats, charts):
+    def _add_analysis_box(self, doc, quarter, year, stats, charts, history=None):
+        history = history or []
         """Analysis box: header + analysis text + Chart 1 (trend)."""
         summary      = stats.get('summary', {})
         error_rate   = summary.get('error_rate', 0)
         total_errors = summary.get('total_errors', 0)
         total_doses  = summary.get('total_doses', 0)
+        target       = summary.get('target', 0.03)
 
         # Container box
         box = doc.add_table(rows=1, cols=1)
@@ -428,28 +434,43 @@ class MedicationErrorDocxGenerator:
         for p_after in cell.paragraphs:
             p_after._element.getparent().remove(p_after._element)
 
-        # Main analysis text  # TODO: AI-generated
-        p_analysis = cell.add_paragraph()
-        self._set_rtl(p_analysis)
-        self._zero_spacing(p_analysis)
-        analysis_text = (
-            f"بلغ عدد اخطاء الدواء (Medication error) في {quarter} من العام {year} : "
-            f"{total_errors} خطأ و نسبته من اجمالي جرعات الدواء (doses={total_doses:,}) "
-            f"{error_rate:.2f}% "
-            "و هذه نتيجة مشجعة مقارنة مع الtarget المعتمد (0.03%) "
-            "و لكنها في ارتفاع عن الفصل السابق حوالي 25% .\n"
-            "جميع هذه الاخطاء هي Near miss "
-            "(58% لم تصل الى المريض و 42% وصلت الى المريض و لكنها لم تؤدي الى أذى)\n"
-            "توزعت الاخطاء بحسب مراحل الدواء الى 51% في مرحلة prescription "
-            "و 44% مرحلة Transcription & administration و 5% في مرحلة dispensing\n"
-            "80% من الاخطاء تم اكتشافها من قبل الصيدلي تليها 16% من قبل RN  و 4% من قبل HN.\n"
-            "اما اسباب اخطاء الادوية فقد تراوحت بين 38% تعطيل سير العمل Work flow disruption "
-            "تليها 29% Medication knowledge Deficiency و 20% Non adherence to guidelines ....\n"
-            "51% من الاخطاء حصلت مع الاطباء يليها 44% مع  RN و 4 % مع الصيدلي"
+        # ── prev-quarter data from history ─────────────────────────────
+        _prev      = history[-1] if history else {}
+        _prev_q    = (f"{_prev.get('quarter','')} {_prev.get('year','')}").strip() or "الفصل السابق"
+        _prev_err  = _prev.get('total_errors', 0)
+        _prev_rate = _prev.get('error_rate', 0)
+
+        # ── cause counts ───────────────────────────────────────────────
+        _causes   = stats.get('error_causes', {})
+        _c_sorted = sorted(_causes.get('counts', {}).items(), key=lambda x: x[1], reverse=True)
+        _c_total  = sum(v for _, v in _c_sorted) or 1
+        _top_c    = _c_sorted[0][0] if _c_sorted else ""
+        _top_c_p  = round(_c_sorted[0][1] / _c_total * 100) if _c_sorted else 0
+        _sec_c    = _c_sorted[1][0] if len(_c_sorted) > 1 else ""
+        _sec_c_p  = round(_c_sorted[1][1] / _c_total * 100) if len(_c_sorted) > 1 else 0
+
+        # ── AI analysis (6 \n-separated lines) ────────────────────────
+        analysis_text = medication_error_ai_service.analyze_summary(
+            quarter=quarter, year=year,
+            total_errors=total_errors, total_doses=total_doses,
+            error_rate=error_rate, target=target,
+            prev_quarter=_prev_q, prev_errors=_prev_err, prev_rate=_prev_rate,
+            ncc_merp=stats.get('ncc_merp', {}).get('counts', {}),
+            error_cycle=stats.get('error_cycle', {}).get('counts', {}),
+            detected_by=stats.get('detected_by', {}).get('counts', {}),
+            staff_involved=stats.get('staff_involved', {}).get('counts', {}),
+            cause_counts=stats.get('error_causes', {}).get('counts', {}),
+            top_cause=_top_c, top_cause_pct=_top_c_p,
+            second_cause=_sec_c, second_cause_pct=_sec_c_p,
         )
-        r_analysis = p_analysis.add_run(analysis_text)
-        r_analysis.font.name = FONT_ANALYSIS
-        r_analysis.font.size = Pt(11)
+
+        # ── Render each line with BiDi-safe split runs ─────────────────
+        _rate_str = f"{error_rate:.2f}%"
+        for _li, _line in enumerate(analysis_text.split('\n')):
+            _line = _line.strip()
+            if _line:
+                self._add_bidi_para(cell, _line, FONT_ANALYSIS, 11,
+                                    bold_values=[_rate_str] if _li == 0 else None)
 
         # Chart title — bold, RTL
         p_ct = cell.add_paragraph()
@@ -466,18 +487,16 @@ class MedicationErrorDocxGenerator:
             pimg.alignment = WD_ALIGN_PARAGRAPH.CENTER
             pimg.add_run().add_picture(charts['chart1_trend'], width=Inches(6.8))
 
-        # Post-chart text  # TODO: AI-generated
-        p_post = cell.add_paragraph()
-        self._set_rtl(p_post)
-        self._zero_spacing(p_post)
-        r_post = p_post.add_run(
-            f"بحسب الرسم البياني فإن مسار نتيجة ME في تحسن بشكل عام "
-            f"و لكن مقارنة {quarter} مع السابق من العام {year} "
-            "فهناك ارتفاع في نسبة ME حوالي 25% "
-            f"( عدد ME في الفصل الثاني 28 و في {quarter} {total_errors} )"
+        # ── Post-chart1 AI text ───────────────────────────────────────
+        _rates4    = [h.get('error_rate', 0) for h in history[-4:]] if len(history) >= 4 else []
+        _trend_dir = 'improving' if (len(_rates4) >= 2 and _rates4[-1] < _rates4[0]) else 'worsening'
+        _post_text = medication_error_ai_service.analyze_trend_post(
+            quarter=quarter, year=year,
+            total_errors=total_errors, error_rate=error_rate,
+            prev_quarter=_prev_q, prev_errors=_prev_err, prev_rate=_prev_rate,
+            trend_direction=_trend_dir,
         )
-        r_post.font.name = FONT_ANALYSIS
-        r_post.font.size = Pt(11)
+        self._add_bidi_para(cell, _post_text, FONT_ANALYSIS, 11)
 
         for p in cell.paragraphs:
             self._zero_spacing(p)
@@ -486,7 +505,11 @@ class MedicationErrorDocxGenerator:
     # PAGE 2: Chart 2 + NCC MERP + WHO Process Stages
     # =========================================================================
 
-    def _build_page2(self, doc, charts, stats):
+    def _build_page2(self, doc, charts, stats, history=None):
+        history = history or []
+        _prev      = history[-1] if history else {}
+        _prev_q    = (f"{_prev.get('quarter','')} {_prev.get('year','')}").strip() or "الفصل السابق"
+        _prev_err  = _prev.get('total_errors', 0)
         doc.add_page_break()
         summary      = stats.get('summary', {})
         quarter      = summary.get('quarter', 'الفصل الثالث')
@@ -501,18 +524,16 @@ class MedicationErrorDocxGenerator:
             self._add_centered_chart(doc, charts['chart2_comparison'], width=6.5)
             logger.info("Chart 2 embedded")
 
-        # Post-chart 2 text  # TODO: AI-generated
-        p2 = doc.add_paragraph()
-        self._set_rtl(p2)
-        self._zero_spacing(p2)
-        r2 = p2.add_run(
-            "يظهر الرسم البياني تزايد عدد ME حوالي 61% ( تزايد 17 ME) "
-            "في الفصل الثالث مقارنة مع الفصل الثاني 2025 .\n"
-            "تجدر الاشارة الى انه ابتداءً من الفصل الثاني من العام 2025 تم تعديل "
-            "طريقة احتساب أخطاء الـ prescribing عن السابق, فلم يتم احتساب الـ interventions ."
+        # ── Post-chart2: AI comparison ───────────────────────────────
+        _cmp = medication_error_ai_service.analyze_comparison(
+            quarter=quarter, year=year, total_errors=total_errors,
+            prev_quarter=_prev_q, prev_errors=_prev_err,
+            has_prescribing_method_change=True,
         )
-        r2.font.name = FONT_ANALYSIS
-        r2.font.size = Pt(11)
+        for _cl in _cmp.split('\n'):
+            _cl = _cl.strip()
+            if _cl:
+                self._add_bidi_para(doc, _cl, FONT_ANALYSIS, 11)
 
         self._add_spacer(doc, space_before=6)
 
@@ -520,42 +541,28 @@ class MedicationErrorDocxGenerator:
         self._add_rtl_para(doc, 'توزيع ME بحسب تصنيف NCC MERP*',
                            11, bold=True, font=FONT_ANALYSIS)
 
-        p_ncc = doc.add_paragraph()
-        self._set_rtl(p_ncc)
-        self._zero_spacing(p_ncc)
-        r_ncc = p_ncc.add_run(
-            "بحسب المجلس الوطني للابلاغ عن اخطاء الادوية و الوقاية منها ( NCC MERP ) "
-            "و التي صنفت اخطاء الادوية بناءً على نتائجها بدءاً من عدم وجود خطأ وصولاً "
-            "الى الضرر المميت و تشمل 6 تصنيفات  "
-            f"و بناءً عليه فقد توزع عدد ME في {quarter} بحسب هذه التصنيفات ضمن الجدول ادناه :"
-        )
-        r_ncc.font.name = FONT_ANALYSIS
-        r_ncc.font.size = Pt(11)
+        self._add_bidi_para(doc,
+            f"بحسب المجلس الوطني للابلاغ عن اخطاء الادوية و الوقاية منها (NCC MERP) "
+            f"و التي صنفت اخطاء الادوية بناءً على نتائجها بدءاً من عدم وجود خطأ وصولاً "
+            f"الى الضرر المميت و تشمل 6 تصنيفات و بناءً عليه فقد توزع عدد ME في {quarter} "
+            f"بحسب هذه التصنيفات ضمن الجدول ادناه :",
+            FONT_ANALYSIS, 11)
 
         self._add_ncc_merp_table(doc, stats)
 
         # NCC MERP footnote title (static)
         self._add_spacer(doc, space_before=4)
-        p_fn = doc.add_paragraph()
-        self._set_rtl(p_fn)
-        self._zero_spacing(p_fn)
-        r_fn = p_fn.add_run(
-            "NCC MERP* : (National Coordination Council for Medication Error "
-            "Reporting and Prevention)"
-        )
-        r_fn.font.name = FONT_ANALYSIS
-        r_fn.font.size = Pt(10)
+        self._add_bidi_para(doc,
+            "NCC MERP* : (National Coordination Council for Medication Error Reporting and Prevention)",
+            FONT_ANALYSIS, 10)
 
-        # NCC MERP analysis text  # TODO: AI-generated
-        p_ncc_ai = doc.add_paragraph()
-        self._set_rtl(p_ncc_ai)
-        self._zero_spacing(p_ncc_ai)
-        r_ncc_ai = p_ncc_ai.add_run(
-            "بحسب التصنيف اظهر ان 58% من اخطاء الدواء لم تصل الى المريض "
-            "و 42% وصلت اليه و لكنها لم تكن مؤذية."
+        _ncc_ai = medication_error_ai_service.analyze_ncc_merp(
+            quarter=quarter,
+            total_errors=stats.get('summary',{}).get('total_errors', 0),
+            ncc_counts=stats.get('ncc_merp',{}).get('counts', {}),
+            ncc_pcts=stats.get('ncc_merp',{}).get('percentages', {}),
         )
-        r_ncc_ai.font.name = FONT_ANALYSIS
-        r_ncc_ai.font.size = Pt(11)
+        self._add_bidi_para(doc, _ncc_ai, FONT_ANALYSIS, 11)
 
         self._add_spacer(doc, space_before=6)
 
@@ -563,28 +570,18 @@ class MedicationErrorDocxGenerator:
         self._add_rtl_para(doc, 'توزيع ME بحسب Process Stages',
                            11, bold=True, font=FONT_ANALYSIS)
 
-        p_who_intro = doc.add_paragraph()
-        self._set_rtl(p_who_intro)
-        self._zero_spacing(p_who_intro)
-        r_who_intro = p_who_intro.add_run(
+        self._add_bidi_para(doc,
             "تشير الابحاث الصادرة عن منظمة الصحة العالمية ان معظم اخطاء الادوية تحدث خلال "
-            "مرحلة اعطاء الدواء Administration و تتوزع الاخطاء بحسب الجدول الاتي :"
-        )
-        r_who_intro.font.name = FONT_ANALYSIS
-        r_who_intro.font.size = Pt(11)
+            "مرحلة اعطاء الدواء Administration و تتوزع الاخطاء بحسب الجدول الاتي :",
+            FONT_ANALYSIS, 11)
 
         self._add_who_stages_table(doc)
 
         # WHO footnote text (static)
-        p_who_note = doc.add_paragraph()
-        self._set_rtl(p_who_note)
-        self._zero_spacing(p_who_note)
-        r_who_note = p_who_note.add_run(
-            "هذا الجدول هو نموذج و ليس Benchmark و لكن لاعطاء فكرة عن توزع الاخطاء بحسب Stages."
-            f"اما حول توزيع الاخطاء في {quarter} من العام {year} فهي على الشكل التالي :"
-        )
-        r_who_note.font.name = FONT_ANALYSIS
-        r_who_note.font.size = Pt(11)
+        self._add_bidi_para(doc,
+            f"هذا الجدول هو نموذج و ليس Benchmark و لكن لاعطاء فكرة عن توزع الاخطاء "
+            f"بحسب Stages. اما حول توزيع الاخطاء في {quarter} من العام {year} فهي على الشكل التالي :",
+            FONT_ANALYSIS, 11)
 
     # =========================================================================
     # NCC MERP TABLE
@@ -731,7 +728,9 @@ class MedicationErrorDocxGenerator:
     # PAGE 3: Chart 3 (cycle) + Chart 4 (detection) + Chart 5 (shift)
     # =========================================================================
 
-    def _build_page3(self, doc, charts):
+    def _build_page3(self, doc, charts, stats=None):
+        stats   = stats or {}
+        quarter = stats.get('summary', {}).get('quarter', 'الفصل الثالث')
         doc.add_page_break()
 
         # ── Chart 3: Error cycle pie ──────────────────────────────────────
@@ -740,17 +739,11 @@ class MedicationErrorDocxGenerator:
             self._add_centered_chart(doc, charts['chart3_cycle_pie'], width=3.3)
             logger.info("Chart 3 embedded")
 
-        # Post-chart 3 text  # TODO: AI-generated
-        p3 = doc.add_paragraph()
-        self._set_rtl(p3)
-        self._zero_spacing(p3)
-        r3 = p3.add_run(
-            "شكلت مرحلة Prescribing النسبة الاعلى من مراحل اعطاء الدواء حيث بلغت حوالي 51% "
-            "من اجمالي عدد الاخطاء تليها مرحلة Transcription و التي اظهرت 36% بينما المراحل "
-            "Dispensing فقد شكلت 13% من مرحلة transcription &administration ."
-        )
-        r3.font.name = FONT_ANALYSIS
-        r3.font.size = Pt(10)
+        _cyc = medication_error_ai_service.analyze_error_cycle(
+            quarter=quarter,
+            cycle_counts=stats.get('error_cycle',{}).get('counts',{}),
+            cycle_pcts=stats.get('error_cycle',{}).get('percentages',{}))
+        self._add_bidi_para(doc, _cyc, FONT_ANALYSIS, 10)
 
         # ── Chart 4: Detection donut ──────────────────────────────────────
         self._add_rtl_para(doc, 'توزيع ME بحسب طريقة اكتشافها',
@@ -770,15 +763,11 @@ class MedicationErrorDocxGenerator:
             self._add_centered_chart(doc, charts['chart4_detection_donut'], width=3.3)
             logger.info("Chart 4 embedded")
 
-        # Post-chart 4 text  # TODO: AI-generated
-        p4_post = doc.add_paragraph()
-        self._set_rtl(p4_post)
-        self._zero_spacing(p4_post)
-        r4_post = p4_post.add_run(
-            "80% من الاخطاء تم اكتشافها من قبل الصيدلي يليها 16% من قبل RN ."
-        )
-        r4_post.font.name = FONT_ANALYSIS
-        r4_post.font.size = Pt(10)
+        _det = medication_error_ai_service.analyze_detection(
+            quarter=quarter,
+            detected_counts=stats.get('detected_by',{}).get('counts',{}),
+            detected_pcts=stats.get('detected_by',{}).get('percentages',{}))
+        self._add_bidi_para(doc, _det, FONT_ANALYSIS, 10)
 
         # ── Chart 5: Shift donut ──────────────────────────────────────────
         self._add_rtl_para(doc, 'توزيع ME بحسب الدوام',
@@ -789,37 +778,30 @@ class MedicationErrorDocxGenerator:
             self._add_centered_chart(doc, charts['chart5_shift_donut'], width=3.3)
             logger.info("Chart 5 embedded")
 
-        # Post-chart 5 text  # TODO: AI-generated
-        p5_post = doc.add_paragraph()
-        self._set_rtl(p5_post)
-        self._zero_spacing(p5_post)
-        r5_post = p5_post.add_run(
-            "بلغت النسبة الاعلى لاكتشاف الاخطاء هي في الدوام الصباحي حيث بلغت 76% "
-            "تليها 16% في الدوام الليلي."
-        )
-        r5_post.font.name = FONT_ANALYSIS
-        r5_post.font.size = Pt(10)
+        _sh = medication_error_ai_service.analyze_shift(
+            quarter=quarter,
+            shift_counts=stats.get('duty_shift',{}).get('counts',{}),
+            shift_pcts=stats.get('duty_shift',{}).get('percentages',{}))
+        self._add_bidi_para(doc, _sh, FONT_ANALYSIS, 10)
 
     # =========================================================================
     # PAGE 4: Chart 6 (staff) + Chart 7 (causes) + cross-tab table
     # =========================================================================
 
-    def _build_page4(self, doc, charts, stats):
+    def _build_page4(self, doc, charts, stats, history=None):
+        history = history or []
+        quarter = stats.get('summary', {}).get('quarter', 'الفصل الثالث')
         doc.add_page_break()
 
         # ── Chart 6: Staff involved donut ─────────────────────────────────
         self._add_rtl_para(doc, 'توزيع ME بحسب مسبب الخطأ',
                            11, bold=True, font=FONT_ANALYSIS)
 
-        p6_intro = doc.add_paragraph()
-        self._set_rtl(p6_intro)
-        self._zero_spacing(p6_intro)
-        r6_intro = p6_intro.add_run(
-            "49% من الاخطاء كان سببها الاطباء يليها 44% RN و 7% الصيدلي "
-            "و هذا ما يظهره الرسم البياني ادناه"
-        )
-        r6_intro.font.name = FONT_ANALYSIS
-        r6_intro.font.size = Pt(11)
+        _st = medication_error_ai_service.analyze_staff(
+            quarter=quarter,
+            staff_counts=stats.get('staff_involved',{}).get('counts',{}),
+            staff_pcts=stats.get('staff_involved',{}).get('percentages',{}))
+        self._add_bidi_para(doc, _st, FONT_ANALYSIS, 11)
 
         if 'chart6_staff_donut' in charts:
             logger.info("Embedding Chart 6: Staff donut...")
@@ -835,17 +817,11 @@ class MedicationErrorDocxGenerator:
             self._add_centered_chart(doc, charts['chart7_causes_bars'], width=6.0)
             logger.info("Chart 7 embedded")
 
-        # Post-chart 7 text  # TODO: AI-generated
-        p7_post = doc.add_paragraph()
-        self._set_rtl(p7_post)
-        self._zero_spacing(p7_post)
-        r7_post = p7_post.add_run(
-            "اظهر الرسم البياني اعلاه ان النسبة الاعلى التي ادت الى وقوع اخطاء الادوية "
-            "و هي تعطيل سير العمل work flow disruption و التي بلغت نسبتها 38% "
-            "تليها نقص في المعرفة 29% ..."
-        )
-        r7_post.font.name = FONT_ANALYSIS
-        r7_post.font.size = Pt(11)
+        _ca = medication_error_ai_service.analyze_causes(
+            quarter=quarter,
+            cause_counts=stats.get('error_causes',{}).get('counts',{}),
+            cause_pcts=stats.get('error_causes',{}).get('percentages',{}))
+        self._add_bidi_para(doc, _ca, FONT_ANALYSIS, 11)
 
         self._add_spacer(doc, space_before=4)
 
@@ -1325,6 +1301,85 @@ class MedicationErrorDocxGenerator:
         self._zero_spacing(para)
         para.add_run().add_picture(chart_bytes, width=Inches(width))
 
+
+    def _add_bidi_para(self, container, text, font_name, size,
+                       bold=False, bold_values=None):
+        """
+        Render mixed Arabic/English with correct BiDi bracket/% direction.
+
+        ROOT CAUSE of flipped () and misplaced %:
+          In a w:bidi paragraph with ONE run containing both Arabic and LTR
+          text, the Unicode BiDi algorithm mirrors bracket characters and may
+          reorder adjacent LTR tokens.  Solution: split the text at
+          Arabic/LTR boundaries and give each segment its own run with an
+          explicit direction marker at the XML level.
+
+          LTR run (English, digits, %,  (), commas …):
+            - Remove any inherited <w:rtl/> from rPr
+            - Set w:rFonts ascii/hAnsi/cs = FONT_EN  (prevents Arabic shaping)
+
+          Arabic run:
+            - Append <w:rtl/> to rPr
+            - Set w:rFonts to the Arabic font
+        """
+        # Matches any LTR token: starts with an ASCII letter or digit,
+        # may contain letters, digits, spaces, and common punctuation.
+        LTR_PAT = re.compile(r'[A-Za-z0-9][A-Za-z0-9 ().,;:%&/_\-+<>=*]*')
+
+        # Build [(chunk, is_ltr)] list
+        parts, cursor = [], 0
+        for m in LTR_PAT.finditer(text):
+            if m.start() > cursor:
+                parts.append((text[cursor:m.start()], False))  # Arabic
+            parts.append((m.group(), True))                    # LTR
+            cursor = m.end()
+        if cursor < len(text):
+            parts.append((text[cursor:], False))
+        if not parts:
+            parts = [(text, False)]
+
+        para = container.add_paragraph()
+        self._set_rtl(para)
+        self._zero_spacing(para)
+
+        for chunk, is_ltr in parts:
+            if not chunk:
+                continue
+            # Thin spaces around LTR tokens so Arabic words don't merge
+            display = (' ' + chunk.strip() + ' ') if is_ltr else chunk
+            run = para.add_run(display)
+            run.font.size = Pt(size)
+
+            _bold = bold or (bool(bold_values) and any(bv in chunk for bv in bold_values))
+            if _bold:
+                run.bold = True
+
+            rPr = run._element.get_or_add_rPr()
+
+            # Build/update w:rFonts element
+            rFonts = rPr.find(qn('w:rFonts'))
+            if rFonts is None:
+                rFonts = OxmlElement('w:rFonts')
+                rPr.insert(0, rFonts)
+
+            if is_ltr:
+                # ── LTR run ──────────────────────────────────────────────
+                run.font.name = FONT_EN
+                for attr in ('w:ascii', 'w:hAnsi', 'w:cs'):
+                    rFonts.set(qn(attr), FONT_EN)
+                # Remove any w:rtl so Word treats this run as LTR
+                for el in rPr.findall(qn('w:rtl')):
+                    rPr.remove(el)
+            else:
+                # ── RTL (Arabic) run ─────────────────────────────────────
+                run.font.name = font_name
+                for attr in ('w:ascii', 'w:hAnsi', 'w:cs'):
+                    rFonts.set(qn(attr), font_name)
+                # Ensure w:rtl is present
+                if not rPr.findall(qn('w:rtl')):
+                    rPr.append(OxmlElement('w:rtl'))
+
+
     def _add_analysis_text(self, doc, text):
         para = doc.add_paragraph()
         run  = para.add_run(text)
@@ -1474,3 +1529,6 @@ class MedicationErrorDocxGenerator:
 # SINGLETON
 # =============================================================================
 medication_error_docx_generator = MedicationErrorDocxGenerator()
+
+# Alias for routes.py
+matplotlib_docx_generator = medication_error_docx_generator
