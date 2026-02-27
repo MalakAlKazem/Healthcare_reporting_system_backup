@@ -1,67 +1,108 @@
-# Healthcare Mortality Analysis System
+# Smart Healthcare Reporting System
 
-A professional mortality data analysis system for hospital quarterly reporting. Processes Excel patient data, calculates KPI statistics, generates charts, and produces formatted Arabic/English Word reports.
+A comprehensive hospital reporting platform with three integrated modules: **Mortality Analysis**, **Medication Error Reporting**, and **Infection Control (VAP & CLABSI)**. Each module processes Excel data, tracks quarterly history, generates interactive dashboards, and produces formatted Word reports in Arabic and English.
 
-## Features
+---
 
-- **Data Upload** — Import Excel mortality files; auto-detects and cleans data
-- **Statistical Analysis** — Departments, age groups, WHO disease categories, gender, length of stay
-- **Historical Tracking** — Stores quarterly data and compares trends across up to 11+ quarters
-- **Word Report Generation** — Produces a formatted `.docx` report with embedded charts (Arabic RTL layout)
-- **Bilingual UI** — Full Arabic and English interface support
-- **Offline Operation** — No external APIs or cloud services required
+## Modules
+
+### 1. Mortality Analysis System
+Tracks quarterly patient mortality across hospital departments. Calculates death rates, WHO disease category breakdowns, age/gender distributions, and length-of-stay statistics. Generates a formatted Arabic RTL Word report with embedded charts.
+
+### 2. Medication Error Reporting System
+Monitors and analyzes medication errors across departments. Tracks error types, severity levels, reporting trends, and department-level comparisons. Produces quality and drug safety Word reports with AI-assisted narrative analysis.
+
+### 3. Infection Control System
+Monitors hospital-acquired infection indicators with two active sub-modules:
+
+- **VAP (Ventilator-Associated Pneumonia)** — Tracks VAP cases per 1000 ventilator days across ICU, CCU, CSU, ICN, Ped, and ITU. Generates 6 charts (trend + germ comparison per floor), floor-level rate gauges, germ heatmaps, and downloadable Word reports.
+- **CLABSI (Central Line-Associated Bloodstream Infection)** — Tracks CLABSI cases per 1000 catheter days. Displays quarterly rate trends, germ distribution heatmaps, and detailed case tables per department.
+- **CAUTI** — Coming soon.
+
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19, Vite, Tailwind CSS, Recharts, i18next |
-| API / Data | Python 3.x, FastAPI, Pandas, NumPy |
-| Reports | python-docx, Matplotlib, arabic-reshaper |
-| Storage | JSON (history), local filesystem (reports, charts) |
+| Frontend | React 19, Vite, React Router v6, Recharts, CSS Modules, i18next |
+| Backend API | Python 3.10+, FastAPI, Uvicorn |
+| Data Processing | Pandas, NumPy |
+| Report Generation | python-docx, Matplotlib, arabic-reshaper, python-bidi |
+| AI Analysis | Qwen / local LLM integration (medication error module) |
+| Storage | JSON files (history), local filesystem (charts, reports) |
+
+---
 
 ## Project Structure
 
 ```
 healthcare_motality_system/
-├── frontend/                  # React app (Vite)
+├── frontend/
 │   └── src/
-│       ├── pages/             # Upload, Dashboard, Analysis, Reports
-│       ├── styles/            # CSS Modules per page
-│       └── i18n/              # Arabic / English translations
-├── python-service/            # FastAPI backend
-│   ├── main.py                # App entry point
+│       ├── pages/
+│       │   ├── Home.jsx                  # System selector (3 cards)
+│       │   ├── Dashboard.jsx             # Mortality dashboard
+│       │   ├── Upload.jsx                # Mortality upload
+│       │   ├── Reports.jsx               # Mortality reports
+│       │   ├── MedicationUpload.jsx      # Medication error upload
+│       │   ├── MedicationDashboard.jsx   # Medication error dashboard
+│       │   ├── MedicationReports.jsx     # Medication error reports
+│       │   ├── VapUpload.jsx             # VAP data upload
+│       │   ├── VapDashboard.jsx          # VAP dashboard (gauges, trends, heatmaps)
+│       │   ├── VapReports.jsx            # VAP Word report generator
+│       │   ├── ClabsiUpload.jsx          # CLABSI data upload
+│       │   └── ClabsiDashboard.jsx       # CLABSI dashboard
+│       ├── styles/                       # CSS Modules per page
+│       └── i18n/                         # Arabic / English translations
+│
+├── python-service/
+│   ├── main.py                           # FastAPI entry point
 │   ├── app/
-│   │   ├── api/routes.py      # API endpoints
-│   │   ├── core/              # Data processor, statistics, history manager
-│   │   └── services/          # DOCX generator, chart generator
-│   ├── storage/data/          # mortality_history.json
+│   │   ├── api/
+│   │   │   ├── routes.py                 # Mortality endpoints
+│   │   │   ├── medication_routes.py      # Medication error endpoints
+│   │   │   ├── vap_routes.py             # VAP endpoints
+│   │   │   └── clabsi_routes.py          # CLABSI endpoints
+│   │   ├── core/                         # Mortality processor, statistics, history
+│   │   ├── services/                     # Shared DOCX & chart generators
+│   │   ├── medication_error/             # Medication error processor, history, AI service
+│   │   ├── infection_control/
+│   │   │   └── VAP/                      # VAP processor, statistics, history, charts, DOCX
+│   │   └── clabsi/                       # CLABSI processor, history, targets
+│   ├── storage/
+│   │   ├── data/                         # mortality_history.json, VAP_history.json, clabsi_history.json
+│   │   ├── charts/                       # Generated chart PNGs
+│   │   ├── reports/                      # Generated .docx reports
+│   │   └── temp/                         # Upload temp files
 │   └── requirements.txt
-├── storage/
-│   ├── reports/               # Generated .docx files
-│   ├── charts/                # Generated chart images
-│   └── temp/                  # Upload temp files
-├── sample_data/               # Example Excel files
-└── docker-compose.yml
+│
+├── sample_data/                          # Example Excel files
+└── .gitignore
 ```
+
+---
 
 ## Setup & Installation
 
 ### Prerequisites
 
 - Python 3.10+
-- Node.js 24+ (developed with v24.11.0, npm 11.6.1)
+- Node.js 18+ (tested with v24.x)
 
-### 1. Python Service
+### 1. Python Backend
 
 ```bash
 cd python-service
 
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv .venv
 
-# Activate (Windows)
+# Windows
 .venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -74,18 +115,25 @@ cd frontend
 npm install
 ```
 
+---
+
 ## Running the System
 
-> **Windows Note:** The `PYTHONUTF8=1` flag is required for correct Arabic text rendering.
+> **Windows Note:** Set `PYTHONUTF8=1` for correct Arabic text rendering in reports.
 
 **Terminal 1 — Python API:**
 
 ```bash
 cd python-service
+
+# Windows
 set PYTHONUTF8=1 && .venv\Scripts\python.exe main.py
+
+# macOS / Linux
+PYTHONUTF8=1 python main.py
 ```
 
-**Terminal 2 — Frontend:**
+**Terminal 2 — React Frontend:**
 
 ```bash
 cd frontend
@@ -98,49 +146,85 @@ npm run dev
 |---------|-----|
 | Frontend | http://localhost:5173 |
 | Python API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
+| API Docs (Swagger) | http://localhost:8000/docs |
+
+---
 
 ## Usage
 
-1. **Upload** — Go to the Upload page, select the quarter and year, enter total patients, and upload the Excel file
-2. **Dashboard** — View auto-generated charts and KPIs for the uploaded quarter
-3. **Analysis** — Explore detailed breakdowns by department, age group, disease category, and historical trends
-4. **Reports** — Click **Generate Word Report** to produce a formatted `.docx` and download it
+### Mortality Analysis
+1. Go to **Mortality → Upload**, select quarter/year, enter total patients, upload Excel
+2. View **Dashboard** for auto-generated charts and KPIs
+3. Go to **Reports** to generate and download a formatted Arabic Word report
 
-## Excel File Format
+### Medication Error
+1. Go to **Medication → Upload**, select quarter/year, upload Excel
+2. View **Dashboard** for error type breakdowns and trends
+3. Go to **Reports** to generate a medication error Word report
 
-The system expects an Excel file with at minimum:
+### Infection Control — VAP
+1. Go to **VAP → Upload**, select quarter/year, enter ventilator days per floor, upload Excel
+2. View **Dashboard** for floor-level rate gauges, quarterly trends, and germ heatmaps
+3. Go to **Reports** to generate and download a VAP Word report
 
-| Column | Description |
-|--------|-------------|
-| Age | Patient age |
-| Gender (الجنس) | ذكر / انثى |
-| Nursing Department | Department name |
-| Length of Stay (LOS) | Days |
-| KPI | YES = counted in mortality rate |
-| WHO Category 1 | Disease classification |
-| Building | BCI or RAH |
+### Infection Control — CLABSI
+1. Go to **CLABSI → Upload**, select quarter/year, enter catheter days per department, upload Excel
+2. View **Dashboard** for department rate gauges, trend charts, and germ distribution heatmaps
 
-The mortality rate is calculated as: `KPI deaths / total_patients × 100`
-
-## Historical Data
-
-Quarterly records are stored in `python-service/storage/data/mortality_history.json`.
-
-- Uploading a quarter **updates** it if it already exists
-- New quarters are **appended** in chronological order
-- When generating a report for a past quarter, only quarters that came **before** it are used for trend comparison
+---
 
 ## API Endpoints
 
+### Mortality
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/process-data` | Upload and process an Excel file |
-| POST | `/api/generate-report` | Generate a DOCX report |
-| GET | `/api/download-report?fileName=...` | Download a generated report |
-| GET | `/health` | Health check |
-| GET | `/docs` | Swagger API docs |
+| POST | `/api/process-data` | Upload & process mortality Excel |
+| POST | `/api/generate-report` | Generate mortality DOCX report |
+| GET | `/api/download-report?fileName=...` | Download generated report |
+| GET | `/api/history` | Get all quarterly history |
+
+### Medication Error
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/medication/process-data` | Upload & process medication error Excel |
+| POST | `/api/medication/generate-report` | Generate medication error DOCX report |
+| GET | `/api/medication/download-report?fileName=...` | Download generated report |
+| GET | `/api/medication/history` | Get all quarterly history |
+
+### VAP (Infection Control)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/vap/process-data` | Upload & process VAP Excel |
+| POST | `/api/vap/generate-report` | Generate VAP DOCX report |
+| GET | `/api/vap/download-report?fileName=...` | Download generated report |
+| GET | `/api/vap/history` | Get all quarterly history |
+
+### CLABSI (Infection Control)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/clabsi/process-data` | Upload & process CLABSI Excel |
+| GET | `/api/clabsi/history` | Get all quarterly history |
+| GET | `/api/clabsi/history/latest` | Get most recent quarter |
+| DELETE | `/api/clabsi/history/{year}/{quarter}` | Delete a quarter entry |
+
+---
+
+## Historical Data
+
+Each module stores quarterly history in its own JSON file:
+
+| Module | History File |
+|--------|-------------|
+| Mortality | `python-service/storage/data/mortality_history.json` |
+| VAP | `python-service/storage/data/VAP_history.json` |
+| CLABSI | `python-service/storage/data/clabsi_history.json` |
+
+- Uploading a quarter **updates** it if it already exists
+- New quarters are **appended** in chronological order
+- Dashboards display **all stored quarters** as trend data
+
+---
 
 ## Version
 
-**1.0.0** — Phase 1 (AI analysis placeholder text; AI integration planned for Phase 2)
+**2.0.0** — Three-module platform: Mortality Analysis + Medication Error Reporting + Infection Control (VAP & CLABSI)
