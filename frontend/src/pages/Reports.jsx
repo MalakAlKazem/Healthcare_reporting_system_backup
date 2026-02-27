@@ -22,19 +22,25 @@ function Reports({ data }) {
   const generateSummaryReport = () => {
     if (!data) return null;
 
-    const records = data.records;
-    const totalDeaths = records.length;
-    const avgAge = (records.reduce((sum, r) => sum + (r.age || 0), 0) / totalDeaths).toFixed(1);
-    const maleCount = records.filter(r => r.gender === 'ذكر' || r.gender === 'male').length;
+    const records     = data.records;
+    const totalDeaths = data.statistics?.total_deaths ?? records.length;
+    const kpiDeaths   = data.statistics?.kpi_deaths   ?? records.filter(r =>
+      String(r.include_kpi || r.kpi || '').toUpperCase() === 'YES'
+    ).length;
+
+    const base        = kpiDeaths > 0 ? kpiDeaths : totalDeaths;
+    const avgAge      = (records.reduce((sum, r) => sum + (r.age || 0), 0) / records.length).toFixed(1);
+    const maleCount   = records.filter(r => r.gender === 'ذكر' || r.gender === 'male').length;
     const femaleCount = records.filter(r => r.gender === 'انثى' || r.gender === 'female').length;
 
     return {
       totalDeaths,
+      kpiDeaths,
       avgAge,
       maleCount,
       femaleCount,
-      malePercentage: ((maleCount / totalDeaths) * 100).toFixed(1),
-      femalePercentage: ((femaleCount / totalDeaths) * 100).toFixed(1)
+      malePercentage:   ((maleCount   / base) * 100).toFixed(1),
+      femalePercentage: ((femaleCount / base) * 100).toFixed(1)
     };
   };
 
@@ -205,6 +211,9 @@ function Reports({ data }) {
                 </div>
                 <div className={styles.statCardValue}>
                   {summaryReport.totalDeaths}
+                </div>
+                <div style={{ fontSize: '13px', color: '#dc2626', fontWeight: 600, marginTop: '4px' }}>
+                  KPI Deaths (rate): {summaryReport.kpiDeaths}
                 </div>
                 <div className={styles.statCardProgress}>
                   <div className={styles.statCardProgressBar} style={{ width: '100%' }}></div>
