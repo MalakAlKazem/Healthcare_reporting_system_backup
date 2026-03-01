@@ -559,6 +559,13 @@ Download `qwen2.5-7b-instruct-q3_k_m.gguf` (or any Qwen 2.5 GGUF variant) and pl
 C:\models\qwen2.5-7b-instruct-q3_k_m.gguf
 ```
 
+Or download it directly from Hugging Face using Python:
+
+```bash
+pip install huggingface_hub
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Qwen/Qwen2.5-7B-Instruct-GGUF', filename='qwen2.5-7b-instruct-q3_k_m.gguf', local_dir='C:/models')"
+```
+
 The model is searched in these locations (in order):
 ```
 C:/models/*.gguf
@@ -771,6 +778,13 @@ C:\models\qwen2.5-7b-instruct-q3_k_m.gguf
 ```
 
 Any quantization variant works (`q3_k_m`, `q4_k_m`, `q5_k_m`, etc.). Higher quantization = better quality but more VRAM required.
+
+Or download it directly from Hugging Face:
+
+```bash
+pip install huggingface_hub
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Qwen/Qwen2.5-7B-Instruct-GGUF', filename='qwen2.5-7b-instruct-q3_k_m.gguf', local_dir='C:/models')"
+```
 
 ---
 
