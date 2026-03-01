@@ -66,7 +66,7 @@ const shortQ = (quarter) => {
 };
 
 /* ── Semicircle gauge ───────────────────────────────────────────────────── */
-function DepartmentGauge({ name, rate, target }) {
+function DepartmentGauge({ name, rate, target, ar }) {
   const MAX     = Math.max(rate * 1.5, target * 2, 5);
   const ratePct = Math.min(rate, MAX) / MAX;
   const tgtPct  = Math.min(target, MAX) / MAX;
@@ -102,7 +102,7 @@ function DepartmentGauge({ name, rate, target }) {
           {rate.toFixed(2)}‰
         </text>
         <text x="100" y="98" textAnchor="middle" fontSize="10" fill="#94a3b8">
-          target {target}‰
+          {ar ? 'الهدف' : 'target'} {target}‰
         </text>
       </svg>
 
@@ -110,15 +110,15 @@ function DepartmentGauge({ name, rate, target }) {
                     background: isAbove ? "#fef2f2" : "#f0fdf4",
                     color: isAbove ? RED : GREEN, borderRadius: 20,
                     padding: "5px 16px", fontSize: 12, fontWeight: 700, marginTop: 6 }}>
-        {isAbove ? "▲ Above Target" : "▼ Below Target"}
+        {isAbove ? (ar ? "▲ أعلى من الهدف" : "▲ Above Target") : (ar ? "▼ أقل من الهدف" : "▼ Below Target")}
       </div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 16,
                     marginTop: 16, fontSize: 12, color: SLATE }}>
         {[
-          { label: "Actual",               value: `${rate.toFixed(2)}‰`,             color: isAbove ? RED : GREEN },
-          { label: "Target",               value: `${target}‰`,                       color: AMBER },
-          { label: isAbove ? "Over" : "Under", value: `${Math.abs(rate - target).toFixed(2)}‰`, color: isAbove ? RED : GREEN }
+          { label: ar ? "الفعلي" : "Actual",                        value: `${rate.toFixed(2)}‰`,                      color: isAbove ? RED : GREEN },
+          { label: ar ? "الهدف"  : "Target",                        value: `${target}‰`,                               color: AMBER },
+          { label: isAbove ? (ar ? "فائض" : "Over") : (ar ? "ناقص" : "Under"), value: `${Math.abs(rate - target).toFixed(2)}‰`, color: isAbove ? RED : GREEN }
         ].map((item, i, arr) => (
           <React.Fragment key={item.label}>
             <div style={{ textAlign: "center" }}>
@@ -135,6 +135,7 @@ function DepartmentGauge({ name, rate, target }) {
 
 /* ── Main Dashboard ─────────────────────────────────────────────────────── */
 function VapDashboard({ language }) {
+  const ar = language === 'ar';
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -151,13 +152,13 @@ function VapDashboard({ language }) {
       });
   }, []);
 
-  if (loading) return <div className={styles.emptyState}>Loading...</div>;
+  if (loading) return <div className={styles.emptyState}>{ar ? 'جارٍ التحميل...' : 'Loading...'}</div>;
 
   if (!history.length) {
     return (
       <div className={styles.emptyState}>
-        <h2>No VAP data available</h2>
-        <p>Upload a VAP report to get started.</p>
+        <h2>{ar ? 'لا توجد بيانات VAP' : 'No VAP data available'}</h2>
+        <p>{ar ? 'قم بتحميل تقرير VAP للبدء.' : 'Upload a VAP report to get started.'}</p>
       </div>
     );
   }
@@ -172,7 +173,7 @@ function VapDashboard({ language }) {
       <div style={{ padding: "1rem 1.5rem",
                     background: "linear-gradient(to right, #dbeafe, #ffffff)",
                     borderBottom: "1px solid #e2e8f0" }}>
-        <h3 style={{ margin: 0, color: "#1e3a8a" }}>VAP Quarterly Performance Summary</h3>
+        <h3 style={{ margin: 0, color: "#1e3a8a" }}>{ar ? 'ملخص الأداء الفصلي لـ VAP' : 'VAP Quarterly Performance Summary'}</h3>
       </div>
 
       <div style={{ overflowX: "auto" }}>
@@ -180,7 +181,7 @@ function VapDashboard({ language }) {
                         fontSize: "14px", tableLayout: "fixed" }}>
           <thead style={{ background: "#f1f5f9" }}>
             <tr>
-              <th style={thStyle}>Department (Target)</th>
+              <th style={thStyle}>{ar ? 'القسم (الهدف)' : 'Department (Target)'}</th>
               {history.map((q, i) => (
                 <th key={i} style={thStyle}>
                   {shortQ(q.quarter)} {q.year}
@@ -199,12 +200,12 @@ function VapDashboard({ language }) {
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <span>{dept}</span>
                       <span style={{ fontSize: "12px", color: "#64748b", marginTop: 2 }}>
-                        Target: {TARGETS[dept]}‰
+                        {ar ? 'الهدف:' : 'Target:'} {TARGETS[dept]}‰
                       </span>
                       {latestRate != null && (
                         <span style={{ fontSize: "12px", marginTop: 4, fontWeight: 600,
                                        color: latestRate > TARGETS[dept] ? RED : GREEN }}>
-                          Latest: {latestRate}‰
+                          {ar ? 'الأحدث:' : 'Latest:'} {latestRate}‰
                         </span>
                       )}
                     </div>
@@ -311,7 +312,7 @@ function VapDashboard({ language }) {
 
       return (
         <div style={{ marginBottom: "2rem" }}>
-          <h3 style={{ marginBottom: 16 }}>Germ Distribution Heatmap</h3>
+          <h3 style={{ marginBottom: 16 }}>{ar ? 'خريطة توزيع الجراثيم' : 'Germ Distribution Heatmap'}</h3>
           <div style={{ overflowX: "auto" }}>
             <div style={{ display: "grid",
                           gridTemplateColumns: `200px repeat(${quarterKeys.length}, 1fr)`,
@@ -355,12 +356,12 @@ function VapDashboard({ language }) {
         {/* Gauge + Trend */}
         <div style={{ display: "grid", gridTemplateColumns: "300px 1fr",
                       gap: "2rem", marginBottom: "2rem" }}>
-          <DepartmentGauge name={dept} rate={latestFloor.rate} target={TARGETS[dept]} />
+          <DepartmentGauge name={dept} rate={latestFloor.rate} target={TARGETS[dept]} ar={ar} />
 
           <div style={{ background: "white", borderRadius: 20, padding: 20,
                         boxShadow: "0 8px 25px rgba(0,0,0,0.05)" }}>
             <h3 style={{ marginBottom: 16 }}>
-              Quarterly VAP Rate vs Target
+              {ar ? 'معدل VAP الفصلي مقابل الهدف' : 'Quarterly VAP Rate vs Target'}
               <span style={{ color: RED, fontWeight: 600 }}> ({TARGETS[dept]}‰)</span>
             </h3>
             <ResponsiveContainer width="100%" height={300}>
@@ -373,15 +374,15 @@ function VapDashboard({ language }) {
                 <Tooltip {...TS}
                   formatter={(v, name) => [
                     `${v.toFixed(2)}‰`,
-                    name === "rate" ? "Actual" : "Target"
+                    name === "rate" ? (ar ? "الفعلي" : "Actual") : (ar ? "الهدف" : "Target")
                   ]} />
                 <Legend verticalAlign="top" height={30} />
-                <Line type="monotone" dataKey="rate" name="Actual Rate"
+                <Line type="monotone" dataKey="rate" name={ar ? "المعدل الفعلي" : "Actual Rate"}
                       stroke="#2563eb" strokeWidth={2.5}
                       dot={{ r: 4, fill: "#2563eb" }}
                       label={{ position: "top", fontSize: 10, fontWeight: 700,
                                fill: "#2563eb", formatter: v => `${v.toFixed(1)}‰` }} />
-                <Line type="monotone" dataKey="target" name="Target"
+                <Line type="monotone" dataKey="target" name={ar ? "الهدف" : "Target"}
                       stroke={RED} strokeDasharray="6 3"
                       strokeWidth={2} dot={false} />
               </LineChart>
@@ -395,7 +396,7 @@ function VapDashboard({ language }) {
   };
 
   return (
-    <div className={styles.dashboard} dir="ltr">
+    <div className={styles.dashboard} dir={ar ? "rtl" : "ltr"}>
       <SummaryTable />
       <div style={{ marginTop: "1rem" }}>
         {Object.keys(TARGETS).map(dept => (

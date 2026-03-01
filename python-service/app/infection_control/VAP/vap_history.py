@@ -147,6 +147,10 @@ class VAPHistory:
             # Germs stored for chart comparison across quarters
             "germs_overall":  stats.get("germs_overall", {}),
             "germs_by_floor": germs_by_floor_clean,
+            # Per-floor case detail tables (used by DOCX report generator)
+            "icu_cases_table": stats.get("icu_cases_table", []),
+            "ccu_cases_table": stats.get("ccu_cases_table", []),
+            "icn_cases_table": stats.get("icn_cases_table", []),
         }
 
         # Upsert — match on Arabic quarter name

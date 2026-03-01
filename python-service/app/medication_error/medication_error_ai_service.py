@@ -120,6 +120,7 @@ class MedicationErrorAIService:
             self._llm = Llama(
                 model_path=MODEL_PATH,
                 n_ctx=1024,
+                n_threads=4,
                 n_threads_batch=4,
                 n_batch=512,
                 use_mlock=False,

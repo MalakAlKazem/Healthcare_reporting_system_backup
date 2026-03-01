@@ -12,7 +12,7 @@ Page 3    : 1-3  ICU cases table    + analysis
             2-1  CCU trend chart    + analysis
 Page 4    : 3-2  CCU germs chart    + analysis
             2-3  CCU cases table    + analysis
-Page 5    : 3-1  ICN trend chart    + analysis
+Page 5    : 3-1  ICN trend chart    + analyis
             3-2  ICN germs chart    + analysis
 Page 6    : 3-3  ICN cases table    + analysis
 Last page : Final result · Action tables · Approval table
@@ -23,6 +23,7 @@ integration point where AI-generated text will replace them.
 
 import io
 import os
+import re
 from datetime import datetime
 
 from docx import Document
@@ -40,6 +41,15 @@ except ImportError:
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO)
 
+
+# ── VAP AI Analysis Service ──────────────────────────────────────────────────
+try:
+    from app.infection_control.VAP.vap_ai_service import vap_ai_service
+except ImportError:
+    try:
+        from vap_ai_service import vap_ai_service
+    except ImportError:
+        vap_ai_service = None   # graceful degradation — fallbacks used
 # =============================================================================
 # FONTS
 # =============================================================================
@@ -141,6 +151,12 @@ class VAPDocxGenerator:
             doc.save(file_path)
             logger.warning(f"Original file was locked; saved as: {file_name}")
         logger.info(f"VAP DOCX saved: {file_path}")
+
+        # Release LLM from memory so it doesn't conflict with other modules
+        try:
+            vap_ai_service.unload()
+        except Exception:
+            pass
 
         return {'filePath': file_path, 'fileName': file_name}
 
@@ -495,7 +511,7 @@ class VAPDocxGenerator:
             r.font.name = FONT_EN
             r.font.size = Pt(8)
 
-    def _add_analysis_box(self, doc, quarter, year, stats):
+    def _add_analysis_box(self, doc, quarter, year, stats, history=None):
         """Box with section header + chart comparison caption."""
         box = doc.add_table(rows=1, cols=1)
         box.autofit = False
@@ -509,6 +525,20 @@ class VAPDocxGenerator:
         for paragraph in list(cell.paragraphs):
             paragraph._element.getparent().remove(paragraph._element)
 
+        # ── AI-generated summary (3 lines) ───────────────────────────────────
+        summary     = stats.get('summary', {})
+        total_cases = summary.get('total_cases', 0)
+        total_vent  = summary.get('total_vent_days', 0)
+        overall_rate= summary.get('overall_rate', 0.0)
+        floor_stats = stats.get('floor_stats', {})
+
+        _prev        = (history or [None])[-1] if history else {}
+        _prev        = _prev or {}
+        _prev_q      = (f"{_prev.get('quarter','')} {_prev.get('year','')}").strip()
+        _prev_cases  = _prev.get('total_cases', 0)
+        _prev_rate   = _prev.get('overall_rate', 0.0)
+
+        
         # Header row inside box
         title_tbl  = cell.add_table(rows=1, cols=1)
         title_tbl.autofit = False
@@ -719,16 +749,23 @@ class VAPDocxGenerator:
                 self._set_cell_border(table.cell(r, c),
                     top=top, bottom=bottom, left=left, right=right)
 
-        # ── Analysis text (TODO: replace with AI-generated analysis) ──────────
+        # ── AI-generated floor comparison analysis ──────────────────────────
         hist_qy   = [(e.get('quarter', ''), str(e.get('year', ''))) for e in recent_hist]
         hist_desc = self._describe_quarters(hist_qy) if hist_qy else ""
-        analysis_text = (
-            f"إن الجدول رقم 1 يظهر لنا مقارنة عدد أيام المرضى الموضوعين على جهاز التنفس الاصطناعي "
-            f"والحالات ونسبة ال VAP في هذه الأقسام"
-            + (f" بين {hist_desc}" if hist_desc else "")
-            + " بحسب الأقسام."
-        )
-        self._add_analysis_paragraph(doc, analysis_text)
+
+        if vap_ai_service:
+            floor_ai = vap_ai_service.analyze_floor_comparison(
+                quarter=cur_quarter, year=cur_year,
+                floor_stats=stats.get('floor_stats', {}),
+                history_desc=self._describe_quarters(all_qy) if all_qy else "",
+            )
+        else:
+            floor_ai = (
+                f"إن الجدول رقم 1 يظهر مقارنة نتائج ال VAP بحسب الأقسام"
+                + (f" بين {hist_desc}" if hist_desc else "")
+                + " من حيث عدد الأيام والحالات والنسبة."
+            )
+        self._add_analysis_paragraph(doc, floor_ai)
 
    
     # =========================================================================
@@ -775,16 +812,19 @@ class VAPDocxGenerator:
             f"مقارنة نسبة ال VAP بين {all_desc} قسم ال ICU:"
         )
         self._add_chart_p2(doc, chart_paths.get('chart1_icu_trend'), "1")
-        self._add_p2_analysis(
-            doc,
-            "إن الرسم البياني رقم 1 يظهر لنا أن نسبة ال VAP  في قسم ال ICU قد إنخفضت خلال "
-            f"{quarter} من العام  {year_s} "
-            "عن الفصل الثاني منه بنسبة 4.14 ‰ وعن الفصل الأول من العام نفسه بنسبة  8.77‰ "
-            'وأيضاً" إنخفضت عن الفصل الرابع من العام 2024  بنسبة 0.47‰ وعن الفصل الثالث من العام نفسه  بنسبة ‰ 11.17\n'
-            'النتيجة أعلاه جداً" مشجعة  كونها لم تتعدى النسبة المسموح بها وهي 25‰ '
-            'وهناك تحسناً" ملحوظاً" مقارنة مع الفصول المذكورة أعلاه.\n'
-            "لقد سجلت حالة  VAP واحدة في قسم ال ICU  (راجع جدول رقم 2)"
-        )
+        # 1-1 analysis → AI
+        _icu_stats = stats.get('floor_stats', {}).get('ICU', {})
+        _icu_hist  = [
+            {'quarter': h.get('quarter',''), 'year': h.get('year',''),
+             'rate': h.get('floors',{}).get('ICU',{}).get('rate',0.0)}
+            for h in history if h.get('floors',{}).get('ICU')
+        ]
+        _icu_ai = (vap_ai_service.analyze_icu_trend(
+            quarter=quarter, year=year_s, icu_stats=_icu_stats,
+            history_rates=_icu_hist, all_desc=all_desc,
+        ) if vap_ai_service else
+            f"إن الرسم البياني رقم 1 يظهر نسبة ال VAP في قسم ال ICU خلال {quarter} من العام {year_s}.")
+        self._add_p2_analysis(doc, _icu_ai)
 
         # ── 1-2 ──────────────────────────────────────────────────────────
         self._add_p2_sub_title(
@@ -792,13 +832,13 @@ class VAPDocxGenerator:
             f"مقارنة نسبة ال VAP بين {two_desc} في قسم ال ICU مع ال Germs المسببة:"
         )
         self._add_chart_p2(doc, chart_paths.get('chart2_icu_germs'), "2")
-        self._add_p2_analysis(
-            doc,
-            "إن الرسم البياني رقم 2 يظهر لنا نوع ال Germs التي ظهرت في ال DTA (Deep tracheal aspiration) culture  "
-            f"في قسم ال ICU ونسبتهم خلال {two_desc} "
-            f"حيث يتبين لنا أن ال     Acinetobacter baumanii & Klebsiella CRE لم تظهرا في {quarter} من العام {year_s}.\n"
-            "لقد سجلت حالة VAP  واحدة سببها  ال Proteus ESBL أي ما يعادل مانسبته %100 من مجمل الحالات."
-        )
+        # 1-2 analysis → AI
+        _icu_germs = stats.get('germs_by_floor', {}).get('ICU', stats.get('germs_overall', {}))
+        _icu_germs_ai = (vap_ai_service.analyze_icu_germs(
+            quarter=quarter, year=year_s, icu_germs=_icu_germs, two_desc=two_desc,
+        ) if vap_ai_service else
+            f"إن الرسم البياني رقم 2 يظهر ال Germs في قسم ال ICU خلال {two_desc}.")
+        self._add_p2_analysis(doc, _icu_germs_ai)
 
         self._add_page_break(doc)
 
@@ -856,16 +896,15 @@ class VAPDocxGenerator:
             para.add_run(f"[ الرسم البياني {label} – خطأ في التحميل ]")
 
     def _add_p2_analysis(self, doc, text):
-        """Analysis paragraph – right-aligned, 10 pt, RTL, for pages 2+."""
+        """Analysis paragraph – right-aligned, 10 pt, RTL, BiDi-safe for mixed Arabic/Latin."""
         for line in text.split('\n'):
-            para = doc.add_paragraph()
-            self._set_rtl(para)                        # sets bidi → auto right-justifies
-            run = para.add_run(line or '\u200f')
-            run.font.name = FONT_ANALYSIS
-            run.font.size = Pt(10)
-            self._set_run_rtl(run)                     # <w:rtl> + w:cs font
-            para.paragraph_format.space_before = Pt(1)
-            para.paragraph_format.space_after  = Pt(1)
+            line = (line or '\u200f').strip()
+            if line == '\u200f' or not line:
+                self._add_bidi_para(doc, '\u200f', FONT_ANALYSIS, 10,
+                                    space_before=1, space_after=1)
+            else:
+                self._add_bidi_para(doc, line, FONT_ANALYSIS, 10,
+                                    space_before=1, space_after=1)
 
     def _add_ai_analysis(self, doc, _section_label: str, _context_data: dict,
                          fallback_text: str = ''):
@@ -992,15 +1031,12 @@ class VAPDocxGenerator:
         self._add_icu_cases_table_p2(doc, cases_table)
 
         # ── 1-3 analysis ─────────────────────────────────────────────────
-        self._add_p2_analysis(
-            doc,
-            f"إن الجدول رقم 2 يظهر لنا شرحاً مفصلاً عن حالة ال VAP المكتسبة في قسم ال ICU خلال {quarter} من العام {year_s} "
-            "ويظهر لنا التشخيص عند الدخول, تاريخ دخول المريض إلى المستشفى , تاريخ وضع المريض على جهاز التنفس , "
-            "تاريخ إلتقاط العدوى مع إسم الجرثومة المسببة بالإضافة إلى العوامل الصحية المساعدة لإلتقاط العدوى  \n"
-            "من خلال هذا الجدول يتبين لنا أن :\n"
-            "- المريض  عمره 92 سنة ولديه عدة عوامل صحية بالإضافة إلى إقامته الطويل في المستشفى.\n"
-            "وهذه جميعه عوامل مساعدة تساهم في تعرض المريض لإلتقاط العدوى المكتسبة بالإضافة إلى عوامل أخرى مذكورة في الجدول أعلاه"
-        )
+        # 1-3 analysis → AI
+        _icu_cases_ai = (vap_ai_service.analyze_icu_cases(
+            quarter=quarter, year=year_s, cases=cases_table,
+        ) if vap_ai_service else
+            f"إن الجدول رقم 2 يظهر تفاصيل حالات ال VAP في قسم ال ICU خلال {quarter} من العام {year_s}.")
+        self._add_p2_analysis(doc, _icu_cases_ai)
 
         # ── 2-1 title ────────────────────────────────────────────────────
         self._add_p2_sub_title(
@@ -1011,14 +1047,19 @@ class VAPDocxGenerator:
         # ── Chart 3 (CCU trend) ───────────────────────────────────────────
         self._add_chart_p2(doc, chart_paths.get('chart3_ccu_trend'), "3")
 
-        self._add_p2_analysis(
-            doc,
-            f"إن الرسم البياني رقم 3 يظهر لنا أن نسبة ال VAP في قسم ال CCU قد انخفضت خلال {quarter} من العام {year_s} "
-            "عن الفصل الثاني منه بنسبة 6.84‰،\n"
-            "في حين ارتفعت عن الفصل الأول من العام نفسه والفصل الرابع من العام 2024 بنسبة 4.36‰،\n"
-            "بينما انخفضت عن الفصل الثالث من العام 2024 بنسبة 3.51‰.\n\n"
-            "النتيجة أعلاه مشجعة كونها لم تتعدَّ النسبة المسموح بها وهي 15‰."
-        )
+        # 2-1 CCU trend analysis → AI
+        _ccu_stats = stats.get('floor_stats', {}).get('CCU', {})
+        _ccu_hist  = [
+            {'quarter': h.get('quarter',''), 'year': h.get('year',''),
+             'rate': h.get('floors',{}).get('CCU',{}).get('rate',0.0)}
+            for h in history if h.get('floors',{}).get('CCU')
+        ]
+        _ccu_ai = (vap_ai_service.analyze_ccu_trend(
+            quarter=quarter, year=year_s, ccu_stats=_ccu_stats,
+            history_rates=_ccu_hist, two_desc=two_desc,
+        ) if vap_ai_service else
+            f"إن الرسم البياني رقم 3 يظهر نسبة ال VAP في قسم ال CCU خلال {quarter} من العام {year_s}.")
+        self._add_p2_analysis(doc, _ccu_ai)
         self._add_page_break(doc)
   
     def _build_page4(self, doc, stats, chart_paths, quarter='', year='', history=None):
@@ -1041,13 +1082,13 @@ class VAPDocxGenerator:
         self._add_chart_p2(doc, chart_paths.get('chart4_ccu_germs'), "4")
 
         # ── Chart 4 analysis ─────────────────────────────────────────────
-        self._add_p2_analysis(
-            doc,
-            "إن الرسم البياني رقم 4 يظهر لنا نوع ال Germs التي ظهرت في ال DTA (Deep tracheal aspiration) culture "
-            f"في قسم ال ICN ونسبتهم خلال {two_desc} "
-            "حيث يتبين لنا أن ال Xanthomonas maltophilia هي السبب في الفصلين الثاني والثالث من العام 2025.\n"
-            "لقد سجلت حالة VAP واحدة سببها ال Xanthomonas maltophilia أي ما يعادل مانسبته %100 من مجمل الحالات."
-        )
+        # CCU germs analysis → AI
+        _ccu_germs = stats.get('germs_by_floor', {}).get('CCU', {})
+        _ccu_germs_ai = (vap_ai_service.analyze_ccu_germs(
+            quarter=quarter, year=year_s, ccu_germs=_ccu_germs, two_desc=two_desc,
+        ) if vap_ai_service else
+            f"إن الرسم البياني رقم 4 يظهر ال Germs في قسم ال CCU خلال {two_desc}.")
+        self._add_p2_analysis(doc, _ccu_germs_ai)
 
         # ── 2-3 title ────────────────────────────────────────────────────
         self._add_p2_sub_title(
@@ -1059,14 +1100,12 @@ class VAPDocxGenerator:
         self._add_icu_cases_table_p2(doc, ccu_cases)
 
         # ── CCU cases analysis ────────────────────────────────────────────
-        self._add_p2_analysis(
-            doc,
-            f"إن الجدول رقم 3 يظهر لنا شرحاً مفصلاً عن حالة ال VAP المكتسبة في قسم ال CCU خلال {quarter} من العام {year_s} "
-            "ويظهر لنا التشخيص عند الدخول, تاريخ دخول المريض إلى المستشفى , تاريخ وضع المريض على جهاز التنفس , "
-            "تاريخ إلتقاط العدوى مع إسم الجرثومة المسببة بالإضافة إلى العوامل الصحية المساعدة لإلتقاط العدوى\n"
-            "من خلال هذا الجدول يتبين لنا أن :\n"
-            f"- المريض عمره 64 سنة ولديه عدة عوامل صحية مذكورة في الجدول أعلاه"
-        )
+        # CCU cases analysis → AI
+        _ccu_cases_ai = (vap_ai_service.analyze_ccu_cases(
+            quarter=quarter, year=year_s, cases=ccu_cases,
+        ) if vap_ai_service else
+            f"إن الجدول رقم 3 يظهر تفاصيل حالات ال VAP في قسم ال CCU خلال {quarter} من العام {year_s}.")
+        self._add_p2_analysis(doc, _ccu_cases_ai)
 
         self._add_page_break(doc)
 
@@ -1090,15 +1129,19 @@ class VAPDocxGenerator:
         self._add_chart_p2(doc, chart_paths.get('chart5_icn_trend'), "5")
 
         # ── Chart 5 analysis ─────────────────────────────────────────────
-        self._add_p2_analysis(
-            doc,
-            f"إن الرسم البياني رقم 5 يظهر لنا أن نسبة ال VAP في قسم ال ICN قد انخفضت خلال {quarter} من العام {year_s} "
-            "عن الفصل الثاني منه بنسبة 1.47‰ وعن الفصل الأول من العام نفسه بنسبة 7.52‰ "
-            "بينما ارتفعت عن الفصل الرابع من العام 2024 بنسبة 4.78‰ "
-            "في حين انخفضت عن الفصل الثالث من العام نفسه بنسبة 0.86‰\n"
-            "النتيجة أعلاه مقبولة كونها لم تتعدَّ النسبة المسموح بها وهي 10‰\n"
-            f"لقد سجلت حالة VAP في قسم ال ICN خلال هذا الفصل (راجع الجدول رقم 5)"
-        )
+        # ICN trend analysis → AI
+        _icn_stats = stats.get('floor_stats', {}).get('ICN', {})
+        _icn_hist  = [
+            {'quarter': h.get('quarter',''), 'year': h.get('year',''),
+             'rate': h.get('floors',{}).get('ICN',{}).get('rate',0.0)}
+            for h in history if h.get('floors',{}).get('ICN')
+        ]
+        _icn_ai = (vap_ai_service.analyze_icn_trend(
+            quarter=quarter, year=year_s, icn_stats=_icn_stats,
+            history_rates=_icn_hist, two_desc=two_desc,
+        ) if vap_ai_service else
+            f"إن الرسم البياني رقم 5 يظهر نسبة ال VAP في قسم ال ICN خلال {quarter} من العام {year_s}.")
+        self._add_p2_analysis(doc, _icn_ai)
         # ── 3-2 title ────────────────────────────────────────────────────
         self._add_p2_sub_title(
             doc,
@@ -1109,13 +1152,13 @@ class VAPDocxGenerator:
         self._add_chart_p2(doc, chart_paths.get('chart6_icn_germs'), "6")
 
         # ── Chart 6 analysis ─────────────────────────────────────────────
-        self._add_p2_analysis(
-            doc,
-            "إن الرسم البياني رقم 6 يظهر لنا نوع ال Germs التي ظهرت في ال DTA (Deep tracheal aspiration) culture "
-            f"في قسم ال ICN ونسبتهم خلال {two_desc} "
-            "حيث يتبين لنا أن ال Xanthomonas maltophilia هي السبب في الفصلين الثاني والثالث من العام 2025.\n"
-            "لقد سجلت حالة VAP واحدة سببها ال Xanthomonas maltophilia أي ما يعادل مانسبته %100 من مجمل الحالات."
-        )
+        # ICN germs analysis → AI
+        _icn_germs = stats.get('germs_by_floor', {}).get('ICN', {})
+        _icn_germs_ai = (vap_ai_service.analyze_icn_germs(
+            quarter=quarter, year=year_s, icn_germs=_icn_germs, two_desc=two_desc,
+        ) if vap_ai_service else
+            f"إن الرسم البياني رقم 6 يظهر ال Germs في قسم ال ICN خلال {two_desc}.")
+        self._add_p2_analysis(doc, _icn_germs_ai)
 
         self._add_page_break(doc)
 
@@ -1134,16 +1177,12 @@ class VAPDocxGenerator:
         self._add_icu_cases_table_p2(doc, icn_cases)
 
         # ── ICN cases analysis ────────────────────────────────────────────
-        self._add_p2_analysis(
-            doc,
-            f"إن الجدول رقم 4 يظهر لنا شرحاً مفصلاً عن حالة ال VAP المكتسبة في قسم ال ICN خلال {quarter} من العام {year_s} "
-            "ويظهر لنا التشخيص عند الدخول, تاريخ دخول المريض إلى المستشفى , تاريخ وضع المريض على جهاز التنفس , "
-            "تاريخ إلتقاط العدوى مع إسم الجرثومة المسببة بالإضافة إلى العوامل الصحية المساعدة لإلتقاط العدوى:\n"
-            "- تشوهات خلقية في القلب\n"
-            "- البقاء لفترة طويلة في القسم على جهاز التنفس الاصطناعي\n"
-            "هذه كلها عوامل تساهم في التقاط العدوى المكتسبة في المستشفى.\n\n"
-            "*النتيجة في أقسام ال Pediatric + CSU + ITU جاءت جداً مشجعة في جميع الفصول المذكورة أعلاه 0‰"
-        )
+        # ICN cases analysis → AI
+        _icn_cases_ai = (vap_ai_service.analyze_icn_cases(
+            quarter=quarter, year=year_s, cases=icn_cases,
+        ) if vap_ai_service else
+            f"إن الجدول رقم 4 يظهر تفاصيل حالات ال VAP في قسم ال ICN خلال {quarter} من العام {year_s}.")
+        self._add_p2_analysis(doc, _icn_cases_ai)
 
 
     # =========================================================================
@@ -1319,17 +1358,98 @@ class VAPDocxGenerator:
     # ANALYSIS HELPERS
     # =========================================================================
 
+
+    def _add_bidi_para(self, container, text, font_name, size,
+                       bold=False, bold_values=None, space_before=2, space_after=2):
+        """
+        Render mixed Arabic / English text with correct BiDi bracket and % placement.
+
+        ROOT CAUSE of flipped () and misplaced % in RTL paragraphs
+        ──────────────────────────────────────────────────────────
+        A single run inside a <w:bidi> paragraph inherits RTL direction for the
+        whole string.  The Unicode BiDi algorithm then:
+          • mirrors bracket characters  →  (VAP) becomes )VAP(
+          • reorders adjacent LTR tokens →  50% becomes %50
+
+        THE FIX  (per-run XML direction markers)
+        ─────────────────────────────────────────
+        Split the text at Arabic/LTR boundaries using a regex, then assign each
+        segment its own <w:r> run with an explicit direction marker:
+
+          LTR run (English, digits, %, (), punctuation):
+            - Remove any inherited <w:rtl/> from rPr
+            - Set w:rFonts ascii/hAnsi/cs = FONT_EN  (prevents Arabic complex-
+              script renderer from applying Arabic shaping to this run)
+
+          Arabic run:
+            - Append <w:rtl/> to rPr
+            - Set w:rFonts to the Arabic font
+        """
+        # Matches LTR tokens: starts with ASCII letter or digit,
+        # may continue with letters, digits, spaces and common punctuation.
+        LTR_PAT = re.compile(r'[A-Za-z0-9][A-Za-z0-9 ().,;:%&/_\-+<>=*‰]*')
+
+        parts, cursor = [], 0
+        for m in LTR_PAT.finditer(text):
+            if m.start() > cursor:
+                parts.append((text[cursor:m.start()], False))  # Arabic
+            parts.append((m.group(), True))                    # LTR
+            cursor = m.end()
+        if cursor < len(text):
+            parts.append((text[cursor:], False))
+        if not parts:
+            parts = [(text, False)]
+
+        para = container.add_paragraph()
+        self._set_rtl(para)
+        self._zero_spacing(para)
+        para.paragraph_format.space_before = Pt(space_before)
+        para.paragraph_format.space_after  = Pt(space_after)
+
+        for chunk, is_ltr in parts:
+            chunk = chunk or ''
+            if not chunk:
+                continue
+            # Thin padding around LTR tokens to keep Arabic and Latin words apart
+            display = (' ' + chunk.strip() + ' ') if is_ltr else chunk
+            run = para.add_run(display)
+            run.font.size = Pt(size)
+
+            _bold = bold or (bool(bold_values) and any(bv in chunk for bv in bold_values))
+            if _bold:
+                run.bold = True
+
+            rPr = run._element.get_or_add_rPr()
+
+            rFonts = rPr.find(qn('w:rFonts'))
+            if rFonts is None:
+                rFonts = OxmlElement('w:rFonts')
+                rPr.insert(0, rFonts)
+
+            if is_ltr:
+                # ── LTR run ──────────────────────────────────────────────────
+                run.font.name = FONT_EN
+                for attr in ('w:ascii', 'w:hAnsi', 'w:cs'):
+                    rFonts.set(qn(attr), FONT_EN)
+                # CRITICAL: remove inherited <w:rtl/> so Word renders LTR
+                for el in rPr.findall(qn('w:rtl')):
+                    rPr.remove(el)
+            else:
+                # ── Arabic run ───────────────────────────────────────────────
+                run.font.name = font_name
+                for attr in ('w:ascii', 'w:hAnsi', 'w:cs'):
+                    rFonts.set(qn(attr), font_name)
+                if not rPr.findall(qn('w:rtl')):
+                    rPr.append(OxmlElement('w:rtl'))
+
     def _add_analysis_paragraph(self, doc, text):
-        """Analysis paragraph – right-aligned, 11 pt, RTL, for page 1."""
+        """Analysis paragraph – right-aligned, 11 pt, RTL, BiDi-safe for page 1."""
         for line in text.split('\n'):
-            para = doc.add_paragraph()
-            self._set_rtl(para)                        # sets bidi → auto right-justifies
-            run = para.add_run(line or '\u200f')
-            run.font.name = FONT_ANALYSIS
-            run.font.size = Pt(11)
-            self._set_run_rtl(run)                     # <w:rtl> + w:cs font
-            para.paragraph_format.space_before = Pt(2)
-            para.paragraph_format.space_after  = Pt(2)
+            line = (line or '\u200f').strip()
+            if not line:
+                line = '\u200f'
+            self._add_bidi_para(doc, line, FONT_ANALYSIS, 11,
+                                space_before=2, space_after=2)
 
     # =========================================================================
     # UTILITY HELPERS
@@ -1517,3 +1637,7 @@ class VAPDocxGenerator:
             el.set(qn('w:type'), 'dxa')
             tblCellMar.append(el)
         tblPr.append(tblCellMar)
+
+# Singleton instances
+vap_docx_generator = VAPDocxGenerator()
+vap_report_generator = vap_docx_generator

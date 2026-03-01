@@ -1,5 +1,375 @@
 [
   {
+    "quarter": "الفصل الرابع",
+    "year": "2022",
+    "total_cases": 10,
+    "total_vent_days": 326,
+    "floors": {
+      "ICU": {
+        "cases": 2,
+        "ventilator_days": 67,
+        "rate": 29.85,
+        "target": 25.0
+      },
+      "CCU": {
+        "cases": 4,
+        "ventilator_days": 98,
+        "rate": 40.82,
+        "target": 15.0
+      },
+      "CSU": {
+        "cases": 1,
+        "ventilator_days": 34,
+        "rate": 29.41,
+        "target": 9.5
+      },
+      "Ped": {
+        "cases": 0,
+        "ventilator_days": 39,
+        "rate": 0.0,
+        "target": 5.5
+      },
+      "ICN": {
+        "cases": 3,
+        "ventilator_days": 87,
+        "rate": 34.48,
+        "target": 10.0
+      },
+      "ITU": {
+        "cases": 0,
+        "ventilator_days": 1,
+        "rate": 0.0,
+        "target": 25.0
+      },
+      "Neonatal": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 0.0
+      }
+    },
+    "germs_overall": {
+      "counts": {
+        "Acinetobacter Baumanii": 3,
+        "Pseudomonas aeruginsa": 2,
+        "Xanthomonas maltophilia": 2,
+        "Klebsiella ESBL": 1,
+        "Klebsiella CRE": 1,
+        "Enterobacter CRE": 1
+      },
+      "percentages": {
+        "Acinetobacter Baumanii": 30.0,
+        "Pseudomonas aeruginsa": 20.0,
+        "Xanthomonas maltophilia": 20.0,
+        "Klebsiella ESBL": 10.0,
+        "Klebsiella CRE": 10.0,
+        "Enterobacter CRE": 10.0
+      },
+      "total": 10
+    },
+    "germs_by_floor": {
+      "ICU": {
+        "counts": {
+          "Klebsiella ESBL": 1,
+          "Acinetobacter Baumanii": 1
+        },
+        "percentages": {
+          "Klebsiella ESBL": 50.0,
+          "Acinetobacter Baumanii": 50.0
+        },
+        "total": 2
+      },
+      "CCU": {
+        "counts": {
+          "Acinetobacter Baumanii": 1,
+          "Klebsiella CRE": 1,
+          "Pseudomonas aeruginsa": 1,
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 25.0,
+          "Klebsiella CRE": 25.0,
+          "Pseudomonas aeruginsa": 25.0,
+          "Xanthomonas maltophilia": 25.0
+        },
+        "total": 4
+      },
+      "CSU": {
+        "counts": {
+          "Acinetobacter Baumanii": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 100.0
+        },
+        "total": 1
+      },
+      "ICN": {
+        "counts": {
+          "Enterobacter CRE": 1,
+          "Pseudomonas aeruginsa": 1,
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Enterobacter CRE": 33.3,
+          "Pseudomonas aeruginsa": 33.3,
+          "Xanthomonas maltophilia": 33.3
+        },
+        "total": 3
+      }
+    },
+    "icu_cases_table": [
+      {
+        "case_number": 1234567891,
+        "nb_of_cases": 1,
+        "age": "53Y",
+        "diagnosis": "Pancreatic cancer",
+        "date_of_admission": "2025-07-10",
+        "date_of_intubation": "2025-10-15",
+        "date_of_infection": "2025-10-25",
+        "germs": "Klebsiella ESBL",
+        "risk_factors": "Cancer",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 10
+      },
+      {
+        "case_number": 9876543211,
+        "nb_of_cases": 2,
+        "age": "76Y",
+        "diagnosis": "Pleural effusion",
+        "date_of_admission": "2025-11-10",
+        "date_of_intubation": "2025-11-10",
+        "date_of_infection": "2025-11-29",
+        "germs": "Acinetobacter Baumanii",
+        "risk_factors": "Diabetic, Hypertension, Heart Disease, Smoker, Advanced Age",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 19
+      }
+    ],
+    "ccu_cases_table": [
+      {
+        "case_number": 1123456789,
+        "nb_of_cases": 1,
+        "age": "74Y",
+        "diagnosis": "Cardiac arrest",
+        "date_of_admission": "2025-09-27",
+        "date_of_intubation": "2025-09-27",
+        "date_of_infection": "2025-10-10",
+        "germs": "Acinetobacter Baumanii",
+        "risk_factors": "Hypertension, Advanced Age",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 13
+      },
+      {
+        "case_number": 1112345678,
+        "nb_of_cases": 2,
+        "age": "74Y",
+        "diagnosis": "Cardiac arrest",
+        "date_of_admission": "2025-09-27",
+        "date_of_intubation": "2025-09-27",
+        "date_of_infection": "2025-10-24",
+        "germs": "Klebsiella CRE",
+        "risk_factors": "Hypertension, Advanced Age",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 27
+      },
+      {
+        "case_number": 1223456789,
+        "nb_of_cases": 3,
+        "age": "74Y",
+        "diagnosis": "Cardiac arrest",
+        "date_of_admission": "2025-09-27",
+        "date_of_intubation": "2025-09-27",
+        "date_of_infection": "2025-02-11",
+        "germs": "Pseudomonas aeruginsa",
+        "risk_factors": "Hypertension, Advanced Age",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 228
+      },
+      {
+        "case_number": 1233456789,
+        "nb_of_cases": 4,
+        "age": "60Y",
+        "diagnosis": "Pulmonary edema",
+        "date_of_admission": "2025-10-26",
+        "date_of_intubation": "2025-01-11",
+        "date_of_infection": "2025-01-11",
+        "germs": "Xanthomonas maltophilia",
+        "risk_factors": "Diabetic, Hypertension, Heart Disease",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 0
+      }
+    ],
+    "icn_cases_table": [
+      {
+        "case_number": 1234556789,
+        "nb_of_cases": 1,
+        "age": "1M",
+        "diagnosis": "Congenital heart disease",
+        "date_of_admission": "2025-09-24",
+        "date_of_intubation": "2025-09-10",
+        "date_of_infection": "2025-10-30",
+        "germs": "Enterobacter CRE",
+        "risk_factors": "Cardiac Congenital Malformation",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 50
+      },
+      {
+        "case_number": 1234566789,
+        "nb_of_cases": 2,
+        "age": "1Y",
+        "diagnosis": "Respiratory failure",
+        "date_of_admission": "2025-10-23",
+        "date_of_intubation": "2025-10-28",
+        "date_of_infection": "2025-03-11",
+        "germs": "Pseudomonas aeruginsa",
+        "risk_factors": "Respiratory Problem",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 231
+      },
+      {
+        "case_number": 1234567789,
+        "nb_of_cases": 3,
+        "age": "3M",
+        "diagnosis": "Congenital heart disease",
+        "date_of_admission": "2025-10-16",
+        "date_of_intubation": "2025-10-31",
+        "date_of_infection": "2025-11-14",
+        "germs": "Xanthomonas maltophilia",
+        "risk_factors": "Cardiac Congenital Malformation",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 14
+      }
+    ]
+  },
+  {
+    "quarter": "الفصل الرابع",
+    "year": "2023",
+    "total_cases": 10,
+    "total_vent_days": 361,
+    "floors": {
+      "ICU": {
+        "cases": 2,
+        "ventilator_days": 225,
+        "rate": 8.89,
+        "target": 25.0
+      },
+      "CCU": {
+        "cases": 4,
+        "ventilator_days": 23,
+        "rate": 173.91,
+        "target": 15.0
+      },
+      "CSU": {
+        "cases": 1,
+        "ventilator_days": 32,
+        "rate": 31.25,
+        "target": 9.5
+      },
+      "Ped": {
+        "cases": 0,
+        "ventilator_days": 2,
+        "rate": 0.0,
+        "target": 5.5
+      },
+      "ICN": {
+        "cases": 3,
+        "ventilator_days": 55,
+        "rate": 54.55,
+        "target": 10.0
+      },
+      "ITU": {
+        "cases": 0,
+        "ventilator_days": 24,
+        "rate": 0.0,
+        "target": 25.0
+      },
+      "Neonatal": {
+        "cases": 0,
+        "ventilator_days": 0,
+        "rate": 0.0,
+        "target": 0.0
+      }
+    },
+    "germs_overall": {
+      "counts": {
+        "Acinetobacter Baumanii": 3,
+        "Pseudomonas aeruginsa": 2,
+        "Xanthomonas maltophilia": 2,
+        "Klebsiella ESBL": 1,
+        "Klebsiella CRE": 1,
+        "Enterobacter CRE": 1
+      },
+      "percentages": {
+        "Acinetobacter Baumanii": 30.0,
+        "Pseudomonas aeruginsa": 20.0,
+        "Xanthomonas maltophilia": 20.0,
+        "Klebsiella ESBL": 10.0,
+        "Klebsiella CRE": 10.0,
+        "Enterobacter CRE": 10.0
+      },
+      "total": 10
+    },
+    "germs_by_floor": {
+      "ICU": {
+        "counts": {
+          "Klebsiella ESBL": 1,
+          "Acinetobacter Baumanii": 1
+        },
+        "percentages": {
+          "Klebsiella ESBL": 50.0,
+          "Acinetobacter Baumanii": 50.0
+        },
+        "total": 2
+      },
+      "CCU": {
+        "counts": {
+          "Acinetobacter Baumanii": 1,
+          "Klebsiella CRE": 1,
+          "Pseudomonas aeruginsa": 1,
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 25.0,
+          "Klebsiella CRE": 25.0,
+          "Pseudomonas aeruginsa": 25.0,
+          "Xanthomonas maltophilia": 25.0
+        },
+        "total": 4
+      },
+      "CSU": {
+        "counts": {
+          "Acinetobacter Baumanii": 1
+        },
+        "percentages": {
+          "Acinetobacter Baumanii": 100.0
+        },
+        "total": 1
+      },
+      "ICN": {
+        "counts": {
+          "Enterobacter CRE": 1,
+          "Pseudomonas aeruginsa": 1,
+          "Xanthomonas maltophilia": 1
+        },
+        "percentages": {
+          "Enterobacter CRE": 33.3,
+          "Pseudomonas aeruginsa": 33.3,
+          "Xanthomonas maltophilia": 33.3
+        },
+        "total": 3
+      }
+    }
+  },
+  {
     "quarter": "الفصل الثالث",
     "year": "2024",
     "total_cases": 14,
@@ -454,47 +824,47 @@
     "quarter": "الفصل الرابع",
     "year": "2025",
     "total_cases": 10,
-    "total_vent_days": 1760,
+    "total_vent_days": 175,
     "floors": {
       "ICU": {
         "cases": 2,
-        "ventilator_days": 650,
-        "rate": 3.08,
+        "ventilator_days": 34,
+        "rate": 58.82,
         "target": 25.0
       },
       "CCU": {
         "cases": 4,
-        "ventilator_days": 480,
-        "rate": 8.33,
+        "ventilator_days": 23,
+        "rate": 173.91,
         "target": 15.0
       },
       "CSU": {
         "cases": 1,
-        "ventilator_days": 120,
-        "rate": 8.33,
+        "ventilator_days": 30,
+        "rate": 33.33,
         "target": 9.5
       },
       "Ped": {
         "cases": 0,
-        "ventilator_days": 0,
+        "ventilator_days": 54,
         "rate": 0.0,
         "target": 5.5
       },
       "ICN": {
         "cases": 3,
-        "ventilator_days": 310,
-        "rate": 9.68,
+        "ventilator_days": 23,
+        "rate": 130.43,
         "target": 10.0
       },
       "ITU": {
         "cases": 0,
-        "ventilator_days": 0,
+        "ventilator_days": 11,
         "rate": 0.0,
         "target": 25.0
       },
       "Neonatal": {
         "cases": 0,
-        "ventilator_days": 200,
+        "ventilator_days": 0,
         "rate": 0.0,
         "target": 0.0
       }
@@ -567,6 +937,138 @@
         },
         "total": 3
       }
-    }
+    },
+    "icu_cases_table": [
+      {
+        "case_number": 1234567891,
+        "nb_of_cases": 1,
+        "age": "53Y",
+        "diagnosis": "Pancreatic cancer",
+        "date_of_admission": "2025-07-10",
+        "date_of_intubation": "2025-10-15",
+        "date_of_infection": "2025-10-25",
+        "germs": "Klebsiella ESBL",
+        "risk_factors": "Cancer",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 10
+      },
+      {
+        "case_number": 9876543211,
+        "nb_of_cases": 2,
+        "age": "76Y",
+        "diagnosis": "Pleural effusion",
+        "date_of_admission": "2025-11-10",
+        "date_of_intubation": "2025-11-10",
+        "date_of_infection": "2025-11-29",
+        "germs": "Acinetobacter Baumanii",
+        "risk_factors": "Diabetic, Hypertension, Heart Disease, Smoker, Advanced Age",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 19
+      }
+    ],
+    "ccu_cases_table": [
+      {
+        "case_number": 1123456789,
+        "nb_of_cases": 1,
+        "age": "74Y",
+        "diagnosis": "Cardiac arrest",
+        "date_of_admission": "2025-09-27",
+        "date_of_intubation": "2025-09-27",
+        "date_of_infection": "2025-10-10",
+        "germs": "Acinetobacter Baumanii",
+        "risk_factors": "Hypertension, Advanced Age",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 13
+      },
+      {
+        "case_number": 1112345678,
+        "nb_of_cases": 2,
+        "age": "74Y",
+        "diagnosis": "Cardiac arrest",
+        "date_of_admission": "2025-09-27",
+        "date_of_intubation": "2025-09-27",
+        "date_of_infection": "2025-10-24",
+        "germs": "Klebsiella CRE",
+        "risk_factors": "Hypertension, Advanced Age",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 27
+      },
+      {
+        "case_number": 1223456789,
+        "nb_of_cases": 3,
+        "age": "74Y",
+        "diagnosis": "Cardiac arrest",
+        "date_of_admission": "2025-09-27",
+        "date_of_intubation": "2025-09-27",
+        "date_of_infection": "2025-02-11",
+        "germs": "Pseudomonas aeruginsa",
+        "risk_factors": "Hypertension, Advanced Age",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 228
+      },
+      {
+        "case_number": 1233456789,
+        "nb_of_cases": 4,
+        "age": "60Y",
+        "diagnosis": "Pulmonary edema",
+        "date_of_admission": "2025-10-26",
+        "date_of_intubation": "2025-01-11",
+        "date_of_infection": "2025-01-11",
+        "germs": "Xanthomonas maltophilia",
+        "risk_factors": "Diabetic, Hypertension, Heart Disease",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 0
+      }
+    ],
+    "icn_cases_table": [
+      {
+        "case_number": 1234556789,
+        "nb_of_cases": 1,
+        "age": "1M",
+        "diagnosis": "Congenital heart disease",
+        "date_of_admission": "2025-09-24",
+        "date_of_intubation": "2025-09-10",
+        "date_of_infection": "2025-10-30",
+        "germs": "Enterobacter CRE",
+        "risk_factors": "Cardiac Congenital Malformation",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 50
+      },
+      {
+        "case_number": 1234566789,
+        "nb_of_cases": 2,
+        "age": "1Y",
+        "diagnosis": "Respiratory failure",
+        "date_of_admission": "2025-10-23",
+        "date_of_intubation": "2025-10-28",
+        "date_of_infection": "2025-03-11",
+        "germs": "Pseudomonas aeruginsa",
+        "risk_factors": "Respiratory Problem",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 231
+      },
+      {
+        "case_number": 1234567789,
+        "nb_of_cases": 3,
+        "age": "3M",
+        "diagnosis": "Congenital heart disease",
+        "date_of_admission": "2025-10-16",
+        "date_of_intubation": "2025-10-31",
+        "date_of_infection": "2025-11-14",
+        "germs": "Xanthomonas maltophilia",
+        "risk_factors": "Cardiac Congenital Malformation",
+        "length_of_stay": null,
+        "duration_of_ventilation": null,
+        "intubation_to_infection_days": 14
+      }
+    ]
   }
 ]
