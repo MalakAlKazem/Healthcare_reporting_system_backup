@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import styles from '../styles/Dashboard.module.css';
+import styles from '../../styles/Dashboard.module.css';
 import { AreaChart, Area } from 'recharts';
-import { HistoricalComparisonsSection } from './HistoricalComparisons';
 import { LabelList } from 'recharts';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -66,7 +65,7 @@ function TrendChart({ historyData }) {
       </div>
       <div className={styles.chartBody}>
         <ResponsiveContainer width="100%" height={430}>
-          <LineChart data={historyData.map(h => ({ label: `${h.quarter} ${h.year}`, rate: h.rate, target: 1.65 }))}
+          <LineChart data={historyData.map(h => ({ label: `${h.quarter} ${h.year}`, rate: h.rate, target: 2 }))}
             margin={{ top: 16, right: 20, left: 0, bottom: 70 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 9, fill: '#64748b' }} interval={0} angle={-45} textAnchor="end" height={75} />
@@ -76,7 +75,7 @@ function TrendChart({ historyData }) {
             <Line type="monotone" dataKey="rate" name="Result" stroke="#3b82f6" strokeWidth={3}
               dot={{ fill: '#3b82f6', r: 4 }} activeDot={{ r: 6 }}
               label={{ position: 'top', fontSize: 9, fill: '#3b82f6', formatter: v => `${v}%` }} />
-            <Line type="monotone" dataKey="target" name="Target (1.65%)" stroke="#58707c" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+            <Line type="monotone" dataKey="target" name="Target (2%)" stroke="#58707c" strokeWidth={2} strokeDasharray="6 3" dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -230,7 +229,10 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
-  const MORTALITY_TARGET = 1.65;
+  const [kpiNoteVisible, setKpiNoteVisible] = useState(true);
+  const MORTALITY_TARGET = 2;
+
+  const kpiCorrections = data?.validation?.issues?.kpi_corrections || [];
 
   // ─── Comparison quarters ───────────────────────────────────────────────────
   const currentKey = quarterSortKey({ quarter, year });
@@ -253,6 +255,19 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
   const labelLastYear = lastYearQuarter ? `${lastYearQuarter.quarter} ${lastYearQuarter.year}` : null;
 
   useEffect(() => { if (data) calculateStatistics(data); }, [data]);
+
+  // ─── Trend data: history + current quarter (if not already in history) ──────
+  const trendData = (() => {
+    const alreadyInHistory = historyData.some(
+      h => h.quarter === quarter && String(h.year) === String(year)
+    );
+    const base = alreadyInHistory
+      ? historyData
+      : quarter && year && stats?.mortalityRate != null
+        ? [...historyData, { quarter, year, rate: parseFloat(stats.mortalityRate.toFixed(2)) }]
+        : historyData;
+    return [...base].sort((a, b) => quarterSortKey(a) - quarterSortKey(b));
+  })();
 
   const calculateStatistics = (mortalityData) => {
     if (!mortalityData?.records || !Array.isArray(mortalityData.records)) return;
@@ -321,7 +336,7 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
         <div className={styles.emptyIcon}>📊</div>
         <h2 className={styles.emptyTitle}>{t('noDataYet')}</h2>
         <p className={styles.emptyText}>{t('uploadDataToGetStarted')}</p>
-        <button onClick={() => navigate('/upload')} className={styles.uploadButton}>
+        <button onClick={() => navigate('/mortality/upload')} className={styles.uploadButton}>
           <span>📤</span><span>{t('uploadData')}</span>
         </button>
       </div>
@@ -332,7 +347,7 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
     <div className={styles.emptyState}>
       <div className={styles.emptyIcon}>⏳</div>
       <h2 className={styles.emptyTitle}>{t('processing')}</h2>
-      <p className={styles.emptyText}>{t('pleaseWait')}</p>
+      <p className={styles.emptyText}>{t('pleaseWait', 'يرجى الانتظار...')}</p>
     </div>
   );
 
@@ -356,6 +371,41 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
           </div>
         </div>
       </div>
+
+      {/* KPI Auto-correction notice */}
+      {kpiCorrections.length > 0 && kpiNoteVisible && (
+        <div style={{
+          background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12,
+          padding: '12px 16px', marginBottom: '1.5rem',
+          display: 'flex', alignItems: 'flex-start', gap: 12,
+        }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+              KPI Auto-Correction Applied ({kpiCorrections.length} record{kpiCorrections.length > 1 ? 's' : ''})
+            </div>
+            <div style={{ fontSize: 13, color: '#78350f', marginBottom: 6 }}>
+              The following records were marked <strong>KPI = YES</strong> in the Excel file but had a length of stay under 24 hours.
+              They were automatically changed to <strong>KPI = NO</strong> and excluded from the mortality rate calculation.
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {kpiCorrections.map((c, i) => (
+                <span key={i} style={{
+                  background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8,
+                  padding: '2px 10px', fontSize: 12, color: '#92400e', fontWeight: 600,
+                }}>
+                  Row {c.row} — {c.los_hours}h ({c.los_days}d)
+                  {c.patient_id && c.patient_id !== 'undefined' ? ` · ID: ${c.patient_id}` : ''}
+                </span>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => setKpiNoteVisible(false)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400e', fontSize: 18, padding: 0, flexShrink: 0 }}
+          >×</button>
+        </div>
+      )}
 
       {/* ── KPI Cards ── */}
       <div className={styles.kpiGrid}>
@@ -443,7 +493,7 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
       <div className={styles.chartBody}>
         <ResponsiveContainer width="100%" height={400}>
           <LineChart
-            data={historyData.map(h => ({
+            data={trendData.map(h => ({
               label: `${h.quarter} ${h.year}`,
               rate: h.rate,
               target: MORTALITY_TARGET
@@ -465,7 +515,7 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
               tick={{ fontSize: 11 }}
               domain={[
                 0,
-                Math.max(...historyData.map(h => h.rate), 2) + 0.5
+                Math.max(...trendData.map(h => h.rate), 2) + 0.5
               ]}
               tickFormatter={(v) => `${v}%`}
             />
@@ -512,28 +562,36 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}><h3 className={styles.chartTitle}>Mortality by Building — المبنى</h3></div>
           <div className={styles.chartBody} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart>
-                <Pie data={stats.buildingChart} cx="50%" cy="50%" innerRadius={70} outerRadius={120} dataKey="value" labelLine={false} label={PieLabel} startAngle={90} endAngle={-270}>
-                  {stats.buildingChart.map((entry,i) => <Cell key={i} fill={BUILDING_COLORS[entry.name]||COLORS[i%COLORS.length]} />)}
-                </Pie>
-                <Tooltip {...TS} formatter={(v,name) => [`${v} deaths`, name]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {stats.buildingChart.map((entry,i) => {
-                const color = BUILDING_COLORS[entry.name]||COLORS[i%COLORS.length];
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>{entry.value}</div>
-                    <div>
-                      <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{entry.name}</div>
-                      <div style={{ color: '#94a3b8', fontSize: 11 }}>{((entry.value/stats.totalDeaths)*100).toFixed(1)}% of total</div>
-                    </div>
+            {(() => {
+              const bldgTotal = stats.buildingChart.reduce((s, e) => s + e.value, 0);
+              return (
+                <>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <PieChart>
+                      <Pie data={stats.buildingChart} cx="50%" cy="50%" innerRadius={70} outerRadius={120} dataKey="value" labelLine={false} label={PieLabel} startAngle={90} endAngle={-270}>
+                        {stats.buildingChart.map((entry,i) => <Cell key={i} fill={BUILDING_COLORS[entry.name]||COLORS[i%COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip {...TS} formatter={(v,name) => [`${v} deaths`, name]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {stats.buildingChart.map((entry,i) => {
+                      const color = BUILDING_COLORS[entry.name]||COLORS[i%COLORS.length];
+                      const pct = bldgTotal > 0 ? ((entry.value / bldgTotal) * 100).toFixed(1) : '0.0';
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>{entry.value}</div>
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{entry.name}</div>
+                            <div style={{ color: '#94a3b8', fontSize: 11 }}>{pct}% of total</div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                </>
+              );
+            })()}
           </div>
         </div>
         <div className={styles.chartCard}>
@@ -941,13 +999,6 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
 
 
 
-      {/* ── ROW F — Historical Comparisons ── */}
-      <HistoricalComparisonsSection
-      allThisYear={allThisYear}
-      currentQShort={currentQShort}
-      stats={stats}
-      styles={styles}
-    />
 
 
 

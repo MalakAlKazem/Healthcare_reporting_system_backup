@@ -10,10 +10,10 @@ import shutil
 import pandas as pd
 import numpy as np
 
-from app.medication_error.data_processor import MedicationErrorProcessor
-from app.medication_error.statistics import MedicationErrorStatistics
-from app.medication_error.history_manager import MedicationErrorHistory
-from app.medication_error.docx_generator import medication_error_docx_generator
+from app.medication.data_processor import MedicationErrorProcessor
+from app.medication.statistics import MedicationErrorStatistics
+from app.medication.history_manager import MedicationErrorHistory
+from app.medication.docx_generator import medication_error_docx_generator
 
 router = APIRouter()
 
@@ -22,7 +22,8 @@ me_history = MedicationErrorHistory('storage/data/medication_error_history.json'
 
 
 def convert_numpy(obj):
-    """Recursively convert numpy types to native Python types for JSON serialization."""
+    """Recursively convert numpy/pandas types to native Python types for JSON serialization."""
+    import datetime as _dt
     if isinstance(obj, dict):
         return {k: convert_numpy(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -37,6 +38,10 @@ def convert_numpy(obj):
         return bool(obj)
     elif obj is np.nan or (isinstance(obj, float) and np.isnan(obj)):
         return None
+    elif isinstance(obj, (_dt.datetime, _dt.date)):
+        return obj.isoformat()
+    elif hasattr(obj, 'isoformat'):          # catches pandas Timestamp
+        return obj.isoformat()
     return obj
 
 
@@ -110,14 +115,22 @@ async def process_medication_data(
         stats_calc = MedicationErrorStatistics()
         stats = stats_calc.calculate_all_statistics(df_clean, processor.total_doses, q, y)
 
-        # --- Save to history ---
-        me_history.save_quarter(quarter=q, year=y, stats=stats)
-
         # --- Serialize records ---
         df_json = df_clean.replace({np.nan: None, pd.NaT: None})
         for col in df_json.select_dtypes(include=['datetime64']).columns:
             df_json[col] = df_json[col].astype(str).replace('NaT', None)
         records = df_json.to_dict('records')
+
+        # --- Save lean entry to history (rate / counts / doses only) ---
+        me_history.save_quarter(quarter=q, year=y, stats=stats)
+
+        # --- Save full snapshot to current (stats + raw records) ---
+        me_history.save_current_data(
+            quarter=q,
+            year=y,
+            stats=convert_numpy(dict(stats)),
+            records=convert_numpy(records),
+        )
 
         logger.success(
             f"✅ Processing complete: {len(records)} records, "
@@ -151,12 +164,32 @@ async def process_medication_data(
 
 @router.get("/history")
 async def get_medication_history():
-    """Return all saved medication error quarters (oldest → newest)."""
+    """Return all saved medication error quarters (oldest → newest) — lean fields only."""
     try:
         history = me_history.load_history()
         return convert_numpy(history)
     except Exception as e:
         logger.error(f"History fetch error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/current")
+async def get_medication_current():
+    """Return the full statistics snapshot for the most recently uploaded quarter."""
+    try:
+        entry = me_history.get_latest_current_data()
+        if not entry:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=404, content={"detail": "No current data found"})
+        return convert_numpy({
+            "quarter":      entry.get("quarter", ""),
+            "year":         entry.get("year", ""),
+            "statistics":   entry.get("statistics", {}),
+            "records":      entry.get("records", []),
+            "total_records": len(entry.get("records", [])),
+        })
+    except Exception as e:
+        logger.error(f"Current data fetch error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

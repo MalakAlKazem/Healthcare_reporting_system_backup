@@ -470,7 +470,7 @@ class MortalityDataProcessor:
         if 'include_kpi' not in df.columns:
             logger.info("📊 include_kpi column missing, calculating from length_of_stay")
             df['include_kpi'] = df['length_of_stay'].apply(
-                lambda x: 'YES' if pd.notna(x) and x > 1.0 else 'NO'
+                lambda x: 'YES' if pd.notna(x) and x >= 1.0 else 'NO'
             )
             return df
 
@@ -482,24 +482,46 @@ class MortalityDataProcessor:
         if empty_kpi.any():
             filled_count = empty_kpi.sum()
             df.loc[empty_kpi, 'include_kpi'] = df.loc[empty_kpi, 'length_of_stay'].apply(
-                lambda x: 'YES' if pd.notna(x) and x > 1.0 else 'NO'
+                lambda x: 'YES' if pd.notna(x) and x >= 1.0 else 'NO'
             )
             logger.info(f"📊 Filled {filled_count} empty KPI values from length_of_stay (الإقامة)")
 
         # 2. Calculate expected KPI based on LOS
-        # Rule: KPI = YES if LOS > 1 day (24 hours)
-        df['kpi_expected'] = df['length_of_stay'].apply(lambda x: 'YES' if x > 1.0 else 'NO')
+        # Rule: KPI = YES if LOS >= 1 day (24 hours or more)
+        df['kpi_expected'] = df['length_of_stay'].apply(lambda x: 'YES' if pd.notna(x) and x >= 1.0 else 'NO')
 
-        # 3. Find mismatches
+        # 3. Find mismatches and auto-correct clear violations
+        # Only auto-correct: Excel=YES but LOS is a known value < 1 day (cannot qualify for KPI)
+        # Never touch records where LOS is NaN — trust the Excel value when LOS is unknown
+        violations = df[
+            (df['include_kpi'] == 'YES') &
+            (df['kpi_expected'] == 'NO') &
+            df['length_of_stay'].notna()
+        ]
+        corrections = []
+        if len(violations) > 0:
+            for idx, row in violations.iterrows():
+                patient_id = row.get('patient_id', row.get('record_number', idx))
+                los = row['length_of_stay']
+                corrections.append({
+                    'row': int(idx) + 2,
+                    'patient_id': str(patient_id),
+                    'los_days': round(float(los), 2),
+                    'los_hours': round(float(los) * 24, 1),
+                })
+                df.at[idx, 'include_kpi'] = 'NO'
+                logger.warning(
+                    f"   ↳ Auto-corrected Row {idx+2} (PatientID={patient_id}): "
+                    f"LOS={los:.2f} days ({los*24:.1f}h) — changed KPI from YES → NO"
+                )
+            logger.warning(f"⚠️  Auto-corrected {len(violations)} records: LOS < 24h but marked KPI=YES")
+            self.validation_report['issues']['kpi_corrections'] = corrections
+
+        # Remaining mismatches after corrections (Excel=NO but LOS >= 1 — kept as-is, clinical override)
         mismatches = df[df['include_kpi'] != df['kpi_expected']]
         if len(mismatches) > 0:
-            logger.warning(f"⚠️  Found {len(mismatches)} KPI mismatches (keeping original values)")
+            logger.warning(f"⚠️  Found {len(mismatches)} remaining KPI overrides (kept — clinical exclusions)")
             self.validation_report['issues']['kpi_mismatches'] = len(mismatches)
-
-            # Log details for extreme mismatches
-            for idx, row in mismatches.iterrows():
-                logger.debug(f"   Row {idx}: LOS={row['length_of_stay']:.2f} days, "
-                           f"KPI={row['include_kpi']}, Expected={row['kpi_expected']}")
 
         # 4. Flag extremely long stays (> 365 days = 1 year)
         long_stays = df[df['length_of_stay'] > 365]

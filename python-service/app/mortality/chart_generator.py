@@ -116,7 +116,7 @@ class MatplotlibChartGenerator:
         # Value labels on each point
         for i, (xi, yi) in enumerate(zip(x, result_rates)):
             ax.text(xi, yi + 0.08, f'{yi:.2f}%', ha='center', va='bottom',
-                    fontsize=11, fontweight='bold', color='#333333')
+                    fontsize=14, fontweight='bold', color='#333333')
 
         # Target annotation
         ax.text(len(quarters) / 2, target_rate + 0.35, 'T<2%', ha='center', va='center',
@@ -130,11 +130,11 @@ class MatplotlibChartGenerator:
         y_step = 0.5
         ax.set_ylim(0, y_max)
         ax.set_yticks(np.arange(0, y_max + y_step, y_step))
-        ax.set_yticklabels([f'{v:.1f}%' for v in np.arange(0, y_max + y_step, y_step)], fontsize=11)
+        ax.set_yticklabels([f'{v:.1f}%' for v in np.arange(0, y_max + y_step, y_step)], fontsize=13)
 
         ax.set_xlim(-0.5, len(quarters) - 0.5)
         ax.set_xticks(x)
-        ax.set_xticklabels([self.ar(q) for q in quarters], fontsize=10, ha='center')
+        ax.set_xticklabels([self.ar(q) for q in quarters], fontsize=12, ha='center')
 
         ax.grid(True, axis='y', linestyle='-', linewidth=0.5, color='#D3D3D3', alpha=0.7, zorder=1)
         ax.set_axisbelow(True)
@@ -146,7 +146,7 @@ class MatplotlibChartGenerator:
 
         ax.legend(handles=[mpatches.Patch(color='#4472C4', label=self.ar('النتيجة')),
                           mpatches.Patch(color='#ED7D31', label=self.ar('المستهدف'))],
-                 loc='upper right', frameon=True, fontsize=12, edgecolor='#CCCCCC')
+                 loc='upper right', frameon=True, fontsize=14, edgecolor='#CCCCCC')
 
         plt.tight_layout()
         return self._fig_to_bytes(fig)
@@ -163,8 +163,24 @@ class MatplotlibChartGenerator:
         rah = buildings.get('rah', {})
         bci_deaths = bci.get('deaths', 0)
         rah_deaths = rah.get('deaths', 0)
-        bci_pct = bci.get('percentage', 0)
-        rah_pct = rah.get('percentage', 0)
+
+        # Derive from departments when building data is unavailable
+        if bci_deaths == 0 and rah_deaths == 0:
+            icu_keywords = ['icu', 'ccu', 'csu', 'itcu', 'icn', 'cardiac', 'icvu']
+            for dept in current_stats.get('departments', []):
+                name = dept.get('name', '').lower()
+                cnt  = dept.get('count', 0)
+                if any(k in name for k in icu_keywords):
+                    bci_deaths += cnt
+                else:
+                    rah_deaths += cnt
+
+        total = bci_deaths + rah_deaths
+        if total == 0:
+            bci_pct, rah_pct = 50, 50          # placeholder so pie renders
+        else:
+            bci_pct = round(bci_deaths / total * 100)
+            rah_pct = 100 - bci_pct
 
         sizes = [bci_pct, rah_pct]
 
@@ -174,7 +190,7 @@ class MatplotlibChartGenerator:
         wedges, texts, autotexts = ax.pie(
             sizes, labels=None, colors=['#5B9BD5', '#ED7D31'],
             autopct='%d%%', startangle=90, explode=(0.05, 0),
-            textprops={'fontsize': 20, 'fontweight': 'bold', 'color': 'white'},
+            textprops={'fontsize': 24, 'fontweight': 'bold', 'color': 'white'},
             wedgeprops={'edgecolor': 'white', 'linewidth': 3}, shadow=True)
 
         plt.title(self.ar('نسبة الوفيات بحسب المبنى'), fontsize=18, pad=20, color='#333333')
@@ -182,7 +198,7 @@ class MatplotlibChartGenerator:
         # Legend with death counts
         legend_labels = [f'BCI ({bci_deaths})', f'RAH ({rah_deaths})']
         plt.legend(legend_labels, loc='lower center', bbox_to_anchor=(0.5, -0.1),
-                  ncol=2, frameon=False, fontsize=12)
+                  ncol=2, frameon=False, fontsize=14)
         plt.axis('equal')
         plt.tight_layout()
         return self._fig_to_bytes(fig)
@@ -228,12 +244,12 @@ class MatplotlibChartGenerator:
         ax.set_xticks(list(range(0, x_max + 1, 10)))
         ax.yaxis.tick_right()
         ax.set_yticks(y)
-        ax.set_yticklabels(cats, fontsize=12, color="#555555")
+        ax.set_yticklabels(cats, fontsize=14, color="#555555")
         ax.grid(True, axis="x", color="#D0D0D0", linewidth=1.2, zorder=0)
-        
+
         for s in ["top", "left", "right", "bottom"]:
             ax.spines[s].set_visible(False)
-        
+
         # 3D caps
         for b, v in zip(bars, vals):
             y0, y1 = b.get_y(), b.get_y() + b.get_height()
@@ -243,7 +259,7 @@ class MatplotlibChartGenerator:
             ax.add_patch(cap)
             ax.plot([0, v], [y1, y1], color="#8FBCE6", linewidth=2, alpha=0.65, zorder=3.1)
             ax.text(v + cw + 3, (y0+y1)/2, str(int(v)), va="center", ha="left",
-                   fontsize=16, fontweight="bold", color="#333333", zorder=5)
+                   fontsize=18, fontweight="bold", color="#333333", zorder=5)
         
         ax.set_ylim(-0.8, len(cats) - 0.2)
         for xt in range(0, x_max + 1, 10):
@@ -280,13 +296,13 @@ class MatplotlibChartGenerator:
         for i, (xi, yi) in enumerate(zip(x, values)):
             offset_y = 4 if yi >= np.median(values) else -8
             ax.annotate(str(yi), xy=(xi, yi), xytext=(8, offset_y),
-                       textcoords='offset points', fontsize=12, color='#333333',
+                       textcoords='offset points', fontsize=15, fontweight='bold', color='#333333',
                        ha='left', va='center')
-        
+
         ax.set_ylim(40, max(values) + 15)
         ax.yaxis.tick_right()
         ax.set_xticks(x)
-        ax.set_xticklabels([self.ar(q) for q in quarters_ar], fontsize=11)
+        ax.set_xticklabels([self.ar(q) for q in quarters_ar], fontsize=13)
         ax.yaxis.grid(True, color='#CCCCCC', linewidth=0.8)
         
         for spine in ['top', 'left', 'right']:
@@ -330,12 +346,12 @@ class MatplotlibChartGenerator:
         ax.set_xticks(list(range(0, x_max + 1, 5)))
         ax.yaxis.tick_right()
         ax.set_yticks(y)
-        ax.set_yticklabels([self.ar(t) for t in age_groups_ar], fontsize=13, color="#333333")
+        ax.set_yticklabels([self.ar(t) for t in age_groups_ar], fontsize=14, color="#333333")
         ax.grid(True, axis="x", color="#D0D0D0", linewidth=1.2, zorder=0)
-        
+
         for s in ["top", "left", "right", "bottom"]:
             ax.spines[s].set_visible(False)
-        
+
         # 3D caps
         for b, v in zip(bars, values):
             y0, y1 = b.get_y(), b.get_y() + b.get_height()
@@ -345,7 +361,7 @@ class MatplotlibChartGenerator:
             ax.add_patch(cap)
             ax.plot([0, v], [y1, y1], color="#8FBCE6", linewidth=2, alpha=0.65, zorder=3.1)
             ax.text(v + cw + 1, (y0+y1)/2, str(int(v)), va="center", ha="left",
-                   fontsize=16, color="#333333", zorder=5)
+                   fontsize=18, fontweight="bold", color="#333333", zorder=5)
         
         ax.set_ylim(-0.6, len(age_groups_ar) - 0.4)
         ax.set_title(self.ar('توزيع الوفيات بحسب الفئات العمرية'), fontsize=16, pad=15, color='#333333')
@@ -403,14 +419,14 @@ class MatplotlibChartGenerator:
             for bar, v in zip(bars, vals):
                 if v > 0:
                     ax.text(bar.get_width() + 0.35, bar.get_y() + bar.get_height()/2,
-                           str(int(v)), va='center', ha='left', fontsize=10.5,
+                           str(int(v)), va='center', ha='left', fontsize=13,
                            fontweight='bold', color='#2B2B2B')
-        
+
         ax.set_xlim(41, -1)
         ax.set_xticks([0, 5, 10, 15, 20, 25, 30, 35, 40])
         ax.yaxis.tick_right()
         ax.set_yticks(y)
-        ax.set_yticklabels([self.ar(g) for g in age_groups], fontsize=11.5, color='#222')
+        ax.set_yticklabels([self.ar(g) for g in age_groups], fontsize=13, color='#222')
         
         ax.xaxis.grid(True, color='#C8C8C8', linewidth=0.7, zorder=0)
         ax.spines['top'].set_visible(False)
@@ -430,7 +446,7 @@ class MatplotlibChartGenerator:
             mpatches.Patch(color='#70AD47', label=self.ar(q1_label)),
         ]
         ax.legend(handles=legend_patches, loc='lower center', bbox_to_anchor=(0.5, -0.13),
-                 ncol=3, frameon=False, fontsize=11)
+                 ncol=3, frameon=False, fontsize=13)
         
         plt.tight_layout()
         return self._fig_to_bytes(fig)
@@ -465,9 +481,9 @@ class MatplotlibChartGenerator:
 
         if total > 0:
             sizes = [
-                round((ward_count / total) * 100),
-                round((icu_count / total) * 100),
-                round((er_count / total) * 100)
+                max(round((ward_count / total) * 100), 1),
+                max(round((icu_count / total) * 100), 1),
+                max(round((er_count / total) * 100), 1)
             ]
         else:
             sizes = [4, 92, 4]
@@ -496,7 +512,7 @@ class MatplotlibChartGenerator:
                                        pctdistance=0.55, wedgeprops=dict(edgecolor='white', linewidth=1.2))
         
         for t in autotexts:
-            t.set_fontsize(20)
+            t.set_fontsize(24)
             t.set_fontweight('bold')
             t.set_color('#333333')
         
@@ -507,7 +523,7 @@ class MatplotlibChartGenerator:
 
         legend_handles = [mpatches.Patch(facecolor=c) for c in colors_top]
         ax.legend(legend_handles, labels,
-                 loc='lower center', bbox_to_anchor=(0.5, -0.18), ncol=3, frameon=False, fontsize=12)
+                 loc='lower center', bbox_to_anchor=(0.5, -0.18), ncol=3, frameon=False, fontsize=14)
         
         ax.set_aspect('equal')
         plt.tight_layout()
@@ -598,14 +614,14 @@ class MatplotlibChartGenerator:
             for bar, val in zip(bars, values):
                 if val > 0:
                     ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
-                           str(int(val)), ha='center', va='bottom', fontsize=10,
+                           str(int(val)), ha='center', va='bottom', fontsize=13,
                            fontweight='bold', color='#2F2F2F')
 
         max_val = max((v for vals in data.values() for v in vals), default=10)
         ax.set_title(self.ar('مقارنة الوفيات بحسب الأقسام'), fontsize=22, pad=25, color='#555555')
         ax.set_ylim(0, max_val + 8)
         ax.set_xticks(x)
-        ax.set_xticklabels(depts, rotation=45, ha='right', fontsize=11)
+        ax.set_xticklabels(depts, rotation=45, ha='right', fontsize=13)
         ax.grid(True, axis='y', linestyle='-', linewidth=0.6, color='#CCCCCC', alpha=0.5, zorder=1)
 
         ax.spines['top'].set_visible(False)
@@ -613,7 +629,7 @@ class MatplotlibChartGenerator:
 
         handles, labels_list = ax.get_legend_handles_labels()
         ax.legend(handles[::-1], labels_list[::-1], loc='upper left', bbox_to_anchor=(0.02, 0.98),
-                 ncol=2, fontsize=10, frameon=True, framealpha=0.95, edgecolor='#BBBBBB')
+                 ncol=2, fontsize=12, frameon=True, framealpha=0.95, edgecolor='#BBBBBB')
 
         plt.tight_layout()
         return self._fig_to_bytes(fig)
@@ -699,7 +715,7 @@ class MatplotlibChartGenerator:
                 height = bar.get_height()
                 if height > 0:
                     ax.text(bar.get_x() + bar.get_width()/2., height + 0.5,
-                           f'{int(height)}', ha='center', va='bottom', fontsize=9)
+                           f'{int(height)}', ha='center', va='bottom', fontsize=12, fontweight='bold')
 
         ax.set_title(self.ar('توزيع الوفيات بحسب التشخيص للسبب الذي نجم عنه الوفاة بحسب الفصل'),
                     fontsize=14, pad=20, loc='right', color='#333333')
@@ -707,7 +723,7 @@ class MatplotlibChartGenerator:
         max_val = max((v for vals in quarter_data for v in vals), default=10)
         ax.set_ylim(0, max_val + 5)
         ax.set_xticks(x)
-        ax.set_xticklabels(categories, fontsize=10, ha='right', rotation=30)
+        ax.set_xticklabels(categories, fontsize=12, ha='right', rotation=30)
 
         ax.grid(True, axis='y', linestyle='-', linewidth=0.5,
                color='#E0E0E0', alpha=0.7, zorder=0)
@@ -719,7 +735,7 @@ class MatplotlibChartGenerator:
         ax.spines['bottom'].set_color('#999999')
 
         ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.22),
-                 ncol=3, frameon=False, fontsize=10)
+                 ncol=3, frameon=False, fontsize=12)
 
         plt.subplots_adjust(bottom=0.25)
         plt.tight_layout()
@@ -760,26 +776,26 @@ class MatplotlibChartGenerator:
 
         ax.yaxis.tick_right()
         ax.set_yticks(y)
-        ax.set_yticklabels(cats, fontsize=11.5, color="#555555")
+        ax.set_yticklabels(cats, fontsize=13, color="#555555")
         ax.grid(True, axis="x", color="#D0D0D0", linewidth=1.2, zorder=0)
-        
+
         for s in ["top", "left", "right", "bottom"]:
             ax.spines[s].set_visible(False)
-        
+
         # 3D caps with values ON bars
         for b, v in zip(bars, vals):
             y0, y1 = b.get_y(), b.get_y() + b.get_height()
             yc = (y0 + y1) / 2
             cw = min(1.2, max(0.35, v * 0.25))
-            
+
             cap = Polygon([(v, y0), (v+cw, y0-0.1), (v+cw, y1-0.1), (v, y1)],
                          closed=True, facecolor="#2F5F8A", edgecolor="none", zorder=2.9)
             ax.add_patch(cap)
             ax.plot([0, v], [y1, y1], color="#8FBCE6", linewidth=2, alpha=0.65, zorder=3.1)
-            
+
             x_text = v / 2 if v >= 6 else v + cw + 0.25
             ax.text(x_text, yc, str(int(v)), va="center", ha="center",
-                   fontsize=14, color="#333333", zorder=5)
+                   fontsize=17, fontweight="bold", color="#333333", zorder=5)
         
         ax.set_ylim(-0.9, len(cats) - 0.2)
 

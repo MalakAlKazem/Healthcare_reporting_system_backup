@@ -11,14 +11,15 @@ from loguru import logger
 
 class MedicationErrorHistory:
     """Manage medication error historical data"""
-    
+
     def __init__(self, storage_path: str = 'storage/data/medication_error_history.json'):
         self.storage_path = Path(storage_path)
+        self.current_path = self.storage_path.parent / 'medication_current.json'
         self.history = []
-        
+
         # Create storage directory if needed
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Load existing history
         self.load_history()
     
@@ -51,28 +52,17 @@ class MedicationErrorHistory:
         Returns:
             True if saved successfully
         """
-        logger.info(f"💾 Saving {quarter} {year}...")
-        
-        # Create quarter entry — store full stat objects so the DOCX
-        # generator and chart generator get counts + percentages + matrices
+        logger.info(f"💾 Saving {quarter} {year} to history...")
+
+        # History stores only the lean comparison fields (rate, counts, doses).
+        # Full breakdown data (charts, heatmaps, matrices) is saved separately
+        # in medication_current.json via save_current_data().
         quarter_data = {
-            'quarter': quarter,
-            'year': str(year),
-            'error_rate': stats['summary']['error_rate'],
+            'quarter':      quarter,
+            'year':         str(year),
+            'error_rate':   stats['summary']['error_rate'],
             'total_errors': stats['summary']['total_errors'],
-            'total_doses': stats['summary']['total_doses'],
-            # Full objects (counts + percentages) for chart generator
-            'error_cycle':    stats.get('error_cycle', {}),
-            'detected_by':    stats.get('detected_by', {}),
-            'duty_shift':     stats.get('duty_shift', {}),
-            'staff_involved': stats.get('staff_involved', {}),
-            'error_causes':   stats.get('error_causes', {}),
-            'departments':    stats.get('departments', {}),
-            # Table data required by DOCX generator pages 2, 4, 5
-            'ncc_merp':           stats.get('ncc_merp', {}),
-            'cause_stage_matrix': stats.get('cause_stage_matrix', {}),
-            'type_stage_matrix':  stats.get('type_stage_matrix', {}),
-            'departments_all':    stats.get('departments_all', {}),
+            'total_doses':  stats['summary']['total_doses'],
         }
         
         # Check if quarter already exists
@@ -131,6 +121,65 @@ class MedicationErrorHistory:
         
         return sorted(history, key=sort_key)
     
+    # ── Current data (full snapshot for dashboard / report generation) ────────
+
+    def _quarter_sort_key(self, entry: Dict) -> tuple:
+        quarter_order = {
+            'الفصل الاول': 1, 'الفصل الأول': 1,
+            'الفصل الثاني': 2,
+            'الفصل الثالث': 3,
+            'الفصل الرابع': 4,
+        }
+        try:
+            return (int(entry.get('year', 0)),
+                    quarter_order.get(entry.get('quarter', ''), 0))
+        except (ValueError, TypeError):
+            return (0, 0)
+
+    def save_current_data(self, quarter: str, year: int, stats: Dict,
+                          records: List = None) -> bool:
+        """
+        Save (or overwrite) the full data for the most recently uploaded quarter
+        in medication_current.json.  This file stores everything needed for the
+        dashboard breakdown charts and DOCX report generation.
+        """
+        new_entry = {
+            'quarter': quarter,
+            'year':    str(year),
+            'statistics': stats,
+            'records':    records or [],
+        }
+
+        # Always overwrite with only the latest upload
+        data = [new_entry]
+
+        try:
+            with open(self.current_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            logger.success(f"✅ Saved current data: {quarter} {year}")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Error saving current data: {e}")
+            return False
+
+    def load_current_data(self) -> List[Dict]:
+        """Load all entries from medication_current.json."""
+        try:
+            with open(self.current_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return []
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing medication_current.json: {e}")
+            return []
+
+    def get_latest_current_data(self) -> Optional[Dict]:
+        """Return the most recently uploaded entry (last item in the list)."""
+        data = self.load_current_data()
+        if not data:
+            return None
+        return data[-1]
+
     def initialize_with_data(self, historical_data: List[Dict]) -> bool:
         """
         Initialize history with provided data
@@ -144,17 +193,11 @@ class MedicationErrorHistory:
         formatted_history = []
         for entry in historical_data:
             formatted_entry = {
-                'quarter': entry['quarter'],
-                'year': str(entry['year']),
-                'error_rate': entry['error_rate'],
+                'quarter':      entry['quarter'],
+                'year':         str(entry['year']),
+                'error_rate':   entry['error_rate'],
                 'total_errors': entry['total_errors'],
-                'total_doses': entry['total_doses'],
-                'error_cycle': entry.get('error_cycle', {}),
-                'detected_by': entry.get('detected_by', {}),
-                'duty_shift': entry.get('duty_shift', {}),
-                'staff_involved': entry.get('staff_involved', {}),
-                'error_causes': entry.get('error_causes', {}),
-                'departments': entry.get('departments', {})
+                'total_doses':  entry['total_doses'],
             }
             formatted_history.append(formatted_entry)
         

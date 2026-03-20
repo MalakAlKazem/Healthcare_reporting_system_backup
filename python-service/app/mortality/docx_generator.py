@@ -14,17 +14,20 @@ Pages:
   6. Final result, previous/current action tables, approval table
 """
 
+import re
+import os
+from datetime import datetime
+
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_ALIGN_VERTICAL
+from docx.enum.table import WD_ALIGN_VERTICAL, WD_ROW_HEIGHT_RULE
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-import os
 
 from loguru import logger
-from app.services.chart_generator import matplotlib_chart_generator
-from app.services.ai_service import ai_service
+from app.mortality.chart_generator import matplotlib_chart_generator
+from app.mortality.ai_service import ai_service
 # =============================================================================
 # BIDI CONTROL CHARACTERS (defined as escaped strings — never embed literally)
 # LRE/PDF wrap parentheses to force correct direction in RTL Word paragraphs
@@ -70,7 +73,7 @@ SHADE_TOTAL  = 'F2F2F2'
 class MatplotlibDocxGenerator:
 
     def __init__(self):
-        self.logo_path = 'app/assets/LOGO.png'
+        self.logo_path = 'assets/LOGO.png'
 
     # =========================================================================
     # PUBLIC API
@@ -118,10 +121,10 @@ class MatplotlibDocxGenerator:
         self._build_page3(doc, charts, current_stats, history)
         self._build_page4(doc, charts, current_stats, history)
         self._build_page5(doc, charts, current_stats)
-        self._build_last_page(doc)
+        self._build_last_page(doc, current_stats)
 
         reports_dir = os.path.normpath(
-            os.path.join(os.path.dirname(__file__), '..', '..', '..', 'storage', 'reports')
+            os.path.join(os.path.dirname(__file__), '..', '..', 'storage', 'reports')
         )
         os.makedirs(reports_dir, exist_ok=True)
         file_name = f'mortality-rate report {quarter} {year}.docx'
@@ -185,7 +188,7 @@ class MatplotlibDocxGenerator:
         self._zero_spacing(para)
 
         para     = cells[2].paragraphs[0]
-        run      = para.add_run('QS-36F-103(4)\nApd 15/12/2019')
+        run      = para.add_run(f'QS-36F-103(4)\n{datetime.now().strftime("%d/%m/%Y")}')
         run.font.name = FONT_EN
         run.font.size = Pt(7)
         run.bold      = True
@@ -340,17 +343,19 @@ class MatplotlibDocxGenerator:
             logger.info("Chart 6 embedded")
 
         departments = stats.get('departments', [])
-        if 'chart7' in charts:
-            logger.info("Embedding Chart 7: Department Distribution...")
+        if departments:
+            logger.info("Embedding Department section...")
             self._add_rtl_para(doc, '- توزيع الوفيات بحسب الاقسام', 11, bold=True, font=FONT_ANALYSIS)
-            self._add_dept_chart_with_table(doc, charts['chart7'], departments)
+            chart7_img = charts.get('chart7')
+            if chart7_img:
+                self._add_dept_chart_with_table(doc, chart7_img, departments)
+            else:
+                self._add_dept_table_only(doc, departments)
 
             total_deaths = stats.get('total_deaths', 0)
             icu_keywords = ['icu', 'ccu', 'csu', 'itcu', 'icn', 'picu', 'tcu', 'icvu']
             er_keywords  = ['er', 'emergency', 'طوارئ']
 
-            # FIX 4: use dept_total (sum of table rows) NOT total_deaths
-            # total_deaths includes ER outpatient deaths not in dept list → wrong ward count
             def _is_icu(n): return any(k in n.lower() for k in icu_keywords)
             def _is_er(n):  return any(k in n.lower() for k in er_keywords) and not _is_icu(n)
 
@@ -359,10 +364,6 @@ class MatplotlibDocxGenerator:
             er_d   = sum(d['count'] for d in departments if _is_er(d.get('name', '')))
             ward_d = dept_total - icu_d - er_d
 
-            # Build er_details and ward_details from clinical data if available
-            # These come from stats['clinical'] — populated by the data processor
-            # er_inpatient_deaths: list of {los, specialty}
-            # ward_deaths: list of {department, los, specialty}
             clinical      = stats.get('clinical', {})
             er_details    = None
             ward_details  = None
@@ -390,7 +391,6 @@ class MatplotlibDocxGenerator:
                 ward_details=ward_details
             )
             if not dept_text:
-                # FIX 4b: RTL-safe parens with RLM + clear sentence structure
                 dept_text = (
                     f"بلغ عدد الوفيات في أقسام العناية المركزة {icu_d} حالة، "
                     f"وفي قسم الطوارئ {er_d} حالة "
@@ -398,7 +398,7 @@ class MatplotlibDocxGenerator:
                     f"وفي الأقسام الاستشفائية {ward_d} حالة."
                 )
             self._add_analysis_text(doc, dept_text)
-            logger.info("Chart 7 + table embedded")
+            logger.info("Department section embedded")
 
     # =========================================================================
     # PAGE 4  — FIX 1: added history=None
@@ -490,11 +490,16 @@ class MatplotlibDocxGenerator:
     # LAST PAGE
     # =========================================================================
 
-    def _build_last_page(self, doc):
+    def _build_last_page(self, doc, stats=None):
+        stats = stats or {}
+        rate   = float(stats.get('mortality_rate', 0) or 0)
+        target = float((stats.get('mortality_metrics') or {}).get('target', 2.0) or 2.0)
+        result_text = "مشجعة" if rate < target else "غير مشجعة"
+
         doc.add_page_break()
         self._add_spacer(doc, space_before=6)
         self._add_titled_row(doc, "النتيجة النهائية", shade=SHADE_HEADER, border=BORDER_MEDIUM)
-        self._add_titled_row(doc, "مشجعة", shade=None, border=BORDER_FINE)
+        self._add_titled_row(doc, result_text, shade=None, border=BORDER_FINE)
         self._add_spacer(doc, space_before=6)
         self._add_checkbox_question_box(doc)
         self._add_spacer(doc, space_before=6)
@@ -535,95 +540,123 @@ class MatplotlibDocxGenerator:
     def _add_metadata_table(self, doc, quarter, year):
         table = doc.add_table(rows=3, cols=4)
         table.autofit = False
-        self._set_table_cell_margins(table, top=0, bottom=0, left=60, right=60)
+        self._set_table_cell_margins(table, top=0, bottom=0, left=30, right=30)
 
         col_w = [Inches(1.93), Inches(1.06), Inches(2.71), Inches(1.17)]
         for i, width in enumerate(col_w):
             for row in table.rows:
                 row.cells[i].width = width
 
-        self._style_cell_text(table.cell(0, 3), "موضوع التحليل", FONT, 10, bold=True, rtl=True)
-        self._set_cell_shading(table.cell(0, 3), SHADE_HEADER)
-        self._style_cell_text(table.cell(0, 2), "Inpatient Mortality rate", FONT_EN, 11, bold=True)
-        self._style_cell_text(table.cell(0, 1), "الإدارة", FONT, 10, bold=True, rtl=True)
-        self._set_cell_shading(table.cell(0, 1), SHADE_HEADER)
-        self._style_cell_text(table.cell(0, 0), "الطبية", FONT, 11, rtl=True)
+        # Row heights — generous minimum so content is never cut
+        for ri in range(3):
+            table.rows[ri].height      = Inches(0.35)
+            table.rows[ri].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
 
+        # Row 0
+        self._style_cell_text(table.cell(0, 3), "موضوع التحليل", FONT, 9, bold=True, rtl=True)
+        self._set_cell_shading(table.cell(0, 3), SHADE_HEADER)
+        self._style_cell_text(table.cell(0, 2), "Inpatient Mortality rate", FONT_EN, 8, bold=True)
+        self._style_cell_text(table.cell(0, 1), "الإدارة", FONT, 9, bold=True, rtl=True)
+        self._set_cell_shading(table.cell(0, 1), SHADE_HEADER)
+        self._style_cell_text(table.cell(0, 0), "الطبية", FONT, 10, rtl=True)
+
+        # Row 1
         self._style_cell_text(table.cell(1, 3), "", FONT, 9, rtl=True)
         self._set_cell_shading(table.cell(1, 3), SHADE_HEADER)
-        self._style_cell_text(table.cell(1, 2), "", FONT_EN, 10)
-        self._style_cell_text(table.cell(1, 1), "الوحدة الإدارية", FONT, 10, bold=True, rtl=True)
+        self._style_cell_text(table.cell(1, 2), "", FONT_EN, 9)
+        self._style_cell_text(table.cell(1, 1), "الوحدة الإدارية", FONT, 9, bold=True, rtl=True)
         self._set_cell_shading(table.cell(1, 1), SHADE_HEADER)
-        self._style_cell_text(table.cell(1, 0), "....................", FONT, 10, rtl=True)
+        self._style_cell_text(table.cell(1, 0), "---------------- ", FONT, 9, rtl=True)
 
-        self._style_cell_text(table.cell(2, 3), "مصادر\nالبيانات\n)تحديد اسماء\nالنماذج(", FONT, 9, bold=True, rtl=True)
+        # Row 2
+        self._style_cell_text(table.cell(2, 3), "مصادر البيانات) تحديد اسماء النماذج(", FONT, 9, bold=True, rtl=True)
         self._set_cell_shading(table.cell(2, 3), SHADE_HEADER)
-        self._style_cell_text(table.cell(2, 2), "سجل الوفيات", FONT, 11, rtl=True)
-        self._style_cell_text(table.cell(2, 1), "الشهر / العام\nأو\nالفصل / العام", FONT, 9, bold=True, rtl=True)
+        self._style_cell_text(table.cell(2, 2), "سجل الوفيات", FONT, 9, rtl=True)
+        self._style_cell_text(table.cell(2, 1), "الشهر / الفصل / العام", FONT, 9, bold=True, rtl=True)
         self._set_cell_shading(table.cell(2, 1), SHADE_HEADER)
-        self._style_cell_text(table.cell(2, 0), f"{quarter} {year}", FONT, 11, rtl=True)
+        self._style_cell_text(table.cell(2, 0), f"{quarter} {year} /", FONT, 10, rtl=True)
 
+        # Vertical merges for cols 2 and 3 rows 0-1
         table.cell(0, 2).merge(table.cell(1, 2))
         table.cell(0, 3).merge(table.cell(1, 3))
         self._set_cell_shading(table.cell(0, 3), SHADE_HEADER)
 
-        row0_tcs = table.rows[0]._tr.findall(qn('w:tc'))
-        row1_tcs = table.rows[1]._tr.findall(qn('w:tc'))
+        # Borders — all sides thick
+        for r in range(3):
+            for c in range(4):
+                self._set_cell_border(table.cell(r, c),
+                                      top=BORDER_THICK, bottom=BORDER_THICK,
+                                      left=BORDER_THICK, right=BORDER_THICK)
 
-        self._set_cell_border(table.cell(0, 0), top=BORDER_THICK, bottom=BORDER_THIN,  left=BORDER_THICK,  right=BORDER_THIN)
-        self._set_cell_border(table.cell(1, 0), top=BORDER_THIN,  bottom=BORDER_THIN,  left=BORDER_THICK,  right=BORDER_THIN)
-        self._set_cell_border(table.cell(2, 0), top=BORDER_THIN,  bottom=BORDER_THICK, left=BORDER_THICK,  right=BORDER_THIN)
-        self._set_cell_border(table.cell(0, 1), top=BORDER_THICK, bottom=BORDER_THIN,  left=BORDER_THIN,   right=BORDER_THICK)
-        self._set_cell_border(table.cell(1, 1), top=BORDER_THIN,  bottom=BORDER_THIN,  left=BORDER_THIN,   right=BORDER_THICK)
-        self._set_cell_border(table.cell(2, 1), top=BORDER_THIN,  bottom=BORDER_THICK, left=BORDER_THIN,   right=BORDER_THICK)
-        self._set_tc_border(row0_tcs[2],        top=BORDER_THICK, bottom=BORDER_THIN,  left=BORDER_THICK,  right=BORDER_THIN)
-        self._set_tc_border(row1_tcs[2],        top=BORDER_THIN,  bottom=BORDER_THIN,  left=BORDER_THICK,  right=BORDER_THIN)
-        self._set_cell_border(table.cell(2, 2), top=BORDER_THIN,  bottom=BORDER_THICK, left=BORDER_THICK,  right=BORDER_THIN)
-        self._set_tc_border(row0_tcs[3],        top=BORDER_THICK, bottom=BORDER_THIN,  left=BORDER_THIN,   right=BORDER_THICK)
-        self._set_tc_border(row1_tcs[3],        top=BORDER_THIN,  bottom=BORDER_THIN,  left=BORDER_THIN,   right=BORDER_THICK)
-        self._set_cell_border(table.cell(2, 3), top=BORDER_THIN,  bottom=BORDER_THICK, left=BORDER_THIN,   right=BORDER_THICK)
+        # Cols 2-3 in row 1 are vMerge continuation cells — set their borders directly
+        row1_tcs = table.rows[1]._tr.findall(qn('w:tc'))
+        for tc in row1_tcs[2:4]:
+            self._set_tc_border(tc,
+                                top=BORDER_THICK, bottom=BORDER_THICK,
+                                left=BORDER_THICK, right=BORDER_THICK)
 
     def _add_results_table(self, doc, stats, history):
-        table = doc.add_table(rows=4, cols=6)
-        table.autofit = False
-        self._set_table_cell_margins(table, top=40, bottom=40, left=60, right=60)
+        COLS   = 6
+        N_HIST = COLS - 1
 
-        w_col = Inches(6.87 / 6)
-        for i in range(6):
+        table = doc.add_table(rows=4, cols=COLS)
+        table.autofit = False
+        self._set_table_cell_margins(table, top=10, bottom=10, left=30, right=30)
+
+        w_col = Inches(6.87 / COLS)
+        for i in range(COLS):
             for row in table.rows:
                 row.cells[i].width = w_col
 
+        # Compact row heights
+        table.rows[0].height      = Inches(0.20)
+        table.rows[0].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+        table.rows[1].height      = Inches(0.28)
+        table.rows[1].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+        table.rows[2].height      = Inches(0.20)
+        table.rows[2].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+        table.rows[3].height      = Inches(0.35)
+        table.rows[3].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+
+        # Row 0: merged title
         cell0 = table.cell(0, 0)
-        for c in range(1, 6):
+        for c in range(1, COLS):
             cell0 = cell0.merge(table.cell(0, c))
         self._style_cell_text(table.cell(0, 0), "النتائج", FONT, 11, bold=True, rtl=True)
         self._set_cell_shading(table.cell(0, 0), SHADE_HEADER)
 
+        # Row 1: instruction (cols 0-4 merged) + current label (col 5)
         instr = table.cell(1, 0)
-        for c in range(1, 5):
+        for c in range(1, N_HIST):
             instr = instr.merge(table.cell(1, c))
         self._style_cell_text(
             table.cell(1, 0),
-            "في حال كان هناك نتائج سابقة عن الموضوع الذي يتم تحليله يجب ذكره مع تحديد الفترة:\nالشهر / الفصل / العام",
-            FONT, 10, rtl=True
+            "في حال كان هناك نتائج سابقة عن الموضوع الذي يتم تحليله يجب ذكره مع تحديد الفترة: الشهر / الفصل / العام",
+            FONT, 8, bold=True, rtl=True
         )
         self._set_cell_shading(table.cell(1, 0), SHADE_HEADER)
-        self._style_cell_text(table.cell(1, 5), "النتيجة الحالية", FONT, 11, bold=True, rtl=True)
-        self._set_cell_shading(table.cell(1, 5), SHADE_HEADER)
+        self._style_cell_text(table.cell(1, N_HIST), "النتيجة الحالية", FONT, 9, bold=True, rtl=True)
+        self._set_cell_shading(table.cell(1, N_HIST), SHADE_TABLE)
 
-        last5 = history[-5:] if len(history) >= 5 else list(history)
-        while len(last5) < 5:
+        # Row 2: quarter labels
+        last5 = history[-N_HIST:] if len(history) >= N_HIST else list(history)
+        while len(last5) < N_HIST:
             last5 = [{}] + last5
 
-        for i in range(5):
+        for i in range(N_HIST):
             entry = last5[i]
             label = f"{entry['quarter']} {entry['year']}" if entry.get('quarter') else ""
-            self._style_cell_text(table.cell(2, i), label, FONT, 10, rtl=True)
+            self._style_cell_text(table.cell(2, i), label, FONT, 9, bold=True, rtl=True)
             self._set_cell_shading(table.cell(2, i), SHADE_HEADER)
-        self._style_cell_text(table.cell(2, 5), "", FONT, 10, rtl=True)
-        self._set_cell_shading(table.cell(2, 5), SHADE_HEADER)
+        self._style_cell_text(
+            table.cell(2, N_HIST),
+            f"{stats.get('quarter', '')} {stats.get('year', '')}",
+            FONT, 10, bold=True, rtl=True
+        )
+        self._set_cell_shading(table.cell(2, N_HIST), SHADE_TABLE)
 
-        for i in range(5):
+        # Row 3: rate values
+        for i in range(N_HIST):
             entry = last5[i]
             val   = f"{entry['rate']:.2f}%" if entry.get('rate') else ""
             self._style_cell_text(table.cell(3, i), val, FONT_EN, 11)
@@ -633,17 +666,14 @@ class MatplotlibDocxGenerator:
             curr = float(current_rate)
         except Exception:
             curr = 0.0
-        self._style_cell_text(table.cell(3, 5), f"%{curr:.2f}", FONT, 11, bold=True, rtl=True)
+        self._style_cell_text(table.cell(3, N_HIST), f"%{curr:.2f}", FONT, 11, bold=True, rtl=True)
 
+        # Borders — all sides thick
         for row in table.rows:
             for cell in row.cells:
-                self._set_cell_border(cell, top=BORDER_THIN, bottom=BORDER_THIN, left=BORDER_THIN, right=BORDER_THIN)
-        for c in range(6):
-            self._set_cell_border(table.cell(0, c), top=BORDER_THICK,   left=BORDER_THIN,  right=BORDER_THIN,  bottom=BORDER_THIN)
-            self._set_cell_border(table.cell(3, c), bottom=BORDER_THICK, left=BORDER_THIN,  right=BORDER_THIN,  top=BORDER_THIN)
-        for r in range(4):
-            self._set_cell_border(table.cell(r, 0), left=BORDER_THICK,   top=BORDER_THIN,   right=BORDER_THIN,  bottom=BORDER_THIN)
-            self._set_cell_border(table.cell(r, 5), right=BORDER_THICK,  top=BORDER_THIN,   left=BORDER_THIN,   bottom=BORDER_THIN)
+                self._set_cell_border(cell,
+                                      top=BORDER_THICK, bottom=BORDER_THICK,
+                                      left=BORDER_THICK, right=BORDER_THICK)
 
     def _add_analysis_box(self, doc, quarter, year, stats, charts, history=None):
         """
@@ -686,7 +716,6 @@ class MatplotlibDocxGenerator:
         # First paragraph - Introduction
         p2 = cell.add_paragraph()
         self._set_rtl(p2)
-        p2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         self._zero_spacing(p2)
         run1 = p2.add_run(
             f"هذا التحليل يتضمن عدد الوفيات في {quarter} من العام {year}، وتم احتساب نسبة "
@@ -694,28 +723,29 @@ class MatplotlibDocxGenerator:
         )
         run1.font.name = FONT_ANALYSIS
         run1.font.size = Pt(11)
+        rPr1 = run1._element.get_or_add_rPr()
+        if not rPr1.findall(qn('w:rtl')):
+            rPr1.append(OxmlElement('w:rtl'))
 
-        # Subtitle - properly formatted
+        # Subtitle — Arabic run + separate LTR run for "Target", matching IC bidi pattern
         p_subtitle = cell.add_paragraph()
         self._set_rtl(p_subtitle)
-        p_subtitle.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         self._zero_spacing(p_subtitle)
-        
-        # Add the subtitle with proper RTL formatting
-        r_dash = p_subtitle.add_run("- ")
-        r_dash.font.name = FONT_ANALYSIS
-        r_dash.font.size = Pt(11)
-        r_dash.bold = True
-        
-        r_ar = p_subtitle.add_run("مقارنة نسبة الوفيات مع الـ ")
+        # Arabic part: add <w:rtl/> on the run so Word's bidi engine treats it as RTL
+        r_ar = p_subtitle.add_run("- مقارنة نسبة الوفيات مع الـ ")
         r_ar.font.name = FONT_ANALYSIS
         r_ar.font.size = Pt(11)
         r_ar.bold = True
-        
+        r_ar.underline = True
+        rPr_ar = r_ar._element.get_or_add_rPr()
+        if not rPr_ar.findall(qn('w:rtl')):
+            rPr_ar.append(OxmlElement('w:rtl'))
+        # LTR part: no <w:rtl/> so Word renders "Target" left-to-right within RTL paragraph
         r_en = p_subtitle.add_run("Target")
-        r_en.font.name = FONT_EN
+        r_en.font.name = FONT_ANALYSIS
         r_en.font.size = Pt(11)
         r_en.bold = True
+        r_en.underline = True
 
         # Get data for analysis
         target_rate = float(stats.get('mortality_metrics', {}).get('target', 2.0) or 2.0)
@@ -749,13 +779,15 @@ class MatplotlibDocxGenerator:
         # Analysis text paragraph - with proper RTL
         p_ai = cell.add_paragraph()
         self._set_rtl(p_ai)
-        p_ai.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         self._zero_spacing(p_ai)
         
         # Add the text as a single run - this works better for RTL in Word
         run3 = p_ai.add_run(ai_text)
         run3.font.name = FONT_ANALYSIS
         run3.font.size = Pt(11)
+        rPr3 = run3._element.get_or_add_rPr()
+        if not rPr3.findall(qn('w:rtl')):
+            rPr3.append(OxmlElement('w:rtl'))
 
         # Chart section
         if 'chart1' in charts:
@@ -814,10 +846,10 @@ class MatplotlibDocxGenerator:
         total_count = sum(d.get('count', 0) for d in departments)
         dept_data   = [('النسبة', 'عدد الوفيات', 'القسم')]
         for dept in departments:
-            pct   = f"{dept.get('percentage', 0):.0f}%"
-            count = str(dept.get('count', 0))
-            name  = dept_display_names.get(dept.get('name', '').lower().strip(), dept.get('name', ''))
-            dept_data.append((pct, count, name))
+            cnt  = dept.get('count', 0)
+            pct  = f"{(cnt / total_count * 100):.0f}%" if total_count > 0 else "0%"
+            name = dept_display_names.get(dept.get('name', '').lower().strip(), dept.get('name', ''))
+            dept_data.append((pct, str(cnt), name))
         dept_data.append(('100%', str(total_count), 'المجموع'))
 
         num_rows   = len(dept_data)
@@ -844,6 +876,44 @@ class MatplotlibDocxGenerator:
             for j, w in enumerate([Inches(0.7), Inches(0.87), Inches(1.0)]):
                 row.cells[j].width = w
 
+    def _add_dept_table_only(self, doc, departments):
+        """Render a standalone department table (no chart) when chart7 is unavailable."""
+        dept_display_names = {'c2': 'Cardiac 2'}
+        total_count = sum(d.get('count', 0) for d in departments)
+        dept_data = [('النسبة', 'عدد الوفيات', 'القسم')]
+        for dept in departments:
+            cnt  = dept.get('count', 0)
+            pct  = f"{(cnt / total_count * 100):.0f}%" if total_count > 0 else "0%"
+            name = dept_display_names.get(dept.get('name', '').lower().strip(), dept.get('name', ''))
+            dept_data.append((pct, str(cnt), name))
+        dept_data.append(('100%', str(total_count), 'المجموع'))
+
+        num_rows  = len(dept_data)
+        table     = doc.add_table(rows=num_rows, cols=3)
+        table.autofit = False
+        self._set_table_cell_margins(table, top=20, bottom=20, left=40, right=40)
+        self._set_table_rtl(table)
+
+        last_row = num_rows - 1
+        for i, (col1, col2, col3) in enumerate(dept_data):
+            row_cells = table.rows[i].cells
+            for j, val in enumerate([col1, col2, col3]):
+                is_arabic = any('\u0600' <= c <= '\u06FF' for c in val)
+                font = FONT if is_arabic else FONT_EN
+                self._style_cell_text(row_cells[j], val, font, 11,
+                                      bold=(i == 0 or i == last_row), rtl=is_arabic, align='center')
+                self._set_cell_border(row_cells[j], top=BORDER_FINE, bottom=BORDER_FINE,
+                                      left=BORDER_FINE, right=BORDER_FINE)
+            if i == 0:
+                self._shade_row_cells(row_cells, SHADE_TABLE)
+            elif i == last_row:
+                self._shade_row_cells(row_cells, SHADE_TOTAL)
+
+        for row in table.rows:
+            row.cells[0].width = Inches(1.0)
+            row.cells[1].width = Inches(1.2)
+            row.cells[2].width = Inches(4.67)
+
     # =========================================================================
     # PAGE 5 COMPONENTS
     # =========================================================================
@@ -852,10 +922,12 @@ class MatplotlibDocxGenerator:
         total_count = sum(s.get('count', 0) for s in specialties)
         doctor_data = [('اختصاص الطبيب', 'العدد', 'النسبة')]
         for spec in specialties:
+            count = spec.get('count', 0)
+            pct = (count / total_count * 100) if total_count > 0 else 0
             doctor_data.append((
                 spec.get('name', ''),
-                str(spec.get('count', 0)),
-                f"{spec.get('percentage', 0):.1f}%"
+                str(count),
+                f"{pct:.1f}%"
             ))
         doctor_data.append(('المجموع', str(total_count), '100%'))
 
@@ -1091,13 +1163,67 @@ class MatplotlibDocxGenerator:
         self._zero_spacing(para)
         para.add_run().add_picture(chart_bytes, width=Inches(width))
 
-    def _add_analysis_text(self, doc, text):
-        para = doc.add_paragraph()
-        run  = para.add_run(text)
-        run.font.name = FONT_ANALYSIS
-        run.font.size = Pt(11)
+    def _add_bidi_para(self, container, text, font_name, size, bold=False):
+        """
+        Render mixed Arabic/English text with correct BiDi direction.
+        Splits text at Arabic/LTR boundaries and assigns explicit run-level
+        direction markers so parentheses, %, and English tokens render correctly.
+        """
+        # Must start with a Latin LETTER so standalone numbers stay in the RTL flow
+        # (e.g. "34 حالة" renders correctly: number flows RTL, appears before the noun)
+        LTR_PAT = re.compile(r'[A-Za-z][A-Za-z0-9 ().,;:%&/_\-+<>=*]*')
+        parts, cursor = [], 0
+        for m in LTR_PAT.finditer(text):
+            if m.start() > cursor:
+                parts.append((text[cursor:m.start()], False))
+            parts.append((m.group(), True))
+            cursor = m.end()
+        if cursor < len(text):
+            parts.append((text[cursor:], False))
+        if not parts:
+            parts = [(text, False)]
+
+
+        para = container.add_paragraph()
         self._set_rtl(para)
         self._zero_spacing(para)
+
+        for chunk, is_ltr in parts:
+            if not chunk:
+                continue
+            display = (' ' + chunk.strip() + ' ') if is_ltr else chunk
+            run = para.add_run(display)
+            run.font.size = Pt(size)
+            run.bold = bold
+            rPr = run._element.get_or_add_rPr()
+            rFonts = rPr.find(qn('w:rFonts'))
+            if rFonts is None:
+                rFonts = OxmlElement('w:rFonts')
+                rPr.insert(0, rFonts)
+            if is_ltr:
+                run.font.name = FONT_EN
+                for attr in ('w:ascii', 'w:hAnsi', 'w:cs'):
+                    rFonts.set(qn(attr), FONT_EN)
+                for el in rPr.findall(qn('w:rtl')):
+                    rPr.remove(el)
+            else:
+                run.font.name = font_name
+                for attr in ('w:ascii', 'w:hAnsi', 'w:cs'):
+                    rFonts.set(qn(attr), font_name)
+                if not rPr.findall(qn('w:rtl')):
+                    rPr.append(OxmlElement('w:rtl'))
+
+    def _add_analysis_text(self, doc, text):
+        # Strip Unicode bidi control characters the AI may embed in output
+        for ch in ('\u202a', '\u202b', '\u202c', '\u202d', '\u202e',
+                   '\u200e', '\u200f', '\u2066', '\u2067', '\u2068', '\u2069'):
+            text = text.replace(ch, '')
+        # Remove parentheses
+        text = text.replace('(', '').replace(')', '')
+        # Insert Arabic connector before standalone percentages that follow a dept acronym
+        # e.g. "ICU 40%" → "ICU بنسبة 40%"
+        text = re.sub(r'([A-Z]{2,6})\s+(\d+%)', r'\1 بنسبة \2', text)
+        self._add_bidi_para(doc, text, FONT_ANALYSIS, 11)
 
     def _add_titled_row(self, doc, text, shade=None, border=BORDER_FINE):
         tbl = doc.add_table(rows=1, cols=1)
@@ -1116,6 +1242,7 @@ class MatplotlibDocxGenerator:
         run.font.name = font or FONT
         run.font.size = Pt(size)
         run.bold = bold
+        run.underline = True
         self._set_rtl(para)
         self._zero_spacing(para)
 
@@ -1134,10 +1261,11 @@ class MatplotlibDocxGenerator:
 
     def _set_rtl(self, para):
         para.paragraph_format.right_to_left = True
-        pPr  = para._element.get_or_add_pPr()
-        bidi = OxmlElement('w:bidi')
-        bidi.set(qn('w:val'), '1')
-        pPr.append(bidi)
+        pPr = para._element.get_or_add_pPr()
+        if pPr.find(qn('w:bidi')) is None:
+            bidi = OxmlElement('w:bidi')
+            bidi.set(qn('w:val'), '1')
+            pPr.append(bidi)
 
     def _set_table_rtl(self, table):
         bidi = OxmlElement('w:bidiVisual')
@@ -1207,13 +1335,14 @@ class MatplotlibDocxGenerator:
                 for k, v in kwargs[edge].items():
                     element.set(qn('w:' + k), str(v))
 
-    def _style_cell_text(self, cell, text, font_name, font_size, bold=False, rtl=False, align='center'):
+    def _style_cell_text(self, cell, text, font_name, font_size, bold=False, rtl=False, align='center', underline=False):
         cell.text = ''
         p = cell.paragraphs[0]
         r = p.add_run(text)
         r.font.name = font_name
         r.font.size = Pt(font_size)
         r.bold = bold
+        r.underline = underline
         self._zero_spacing(p)
         if align == 'center':
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER

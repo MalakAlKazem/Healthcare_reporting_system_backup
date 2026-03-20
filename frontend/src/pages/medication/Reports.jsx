@@ -1,22 +1,23 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import styles from '../styles/Reports.module.css';
+import styles from '../../styles/Reports.module.css';
 
 const API_URL = 'http://localhost:8000/api/medication';
 
 const TEAL = 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)';
 const TEAL_DARK = '#0f766e';
 
-function MedicationReports({ language }) {
+function MedicationReports({ language, currentData }) {
+  const { t, i18n } = useTranslation();
+  const ar = i18n.language === 'ar';
   const [reportType, setReportType] = useState('summary');
   const [generating, setGenerating] = useState(false);
   const [reportUrl, setReportUrl] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const ar = language === 'ar';
 
-  // Fetch history on mount
   useEffect(() => {
     axios.get(`${API_URL}/history`)
       .then(res => {
@@ -28,31 +29,49 @@ function MedicationReports({ language }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Build a data object from the selected history entry
+  // Sync selected index to last uploaded quarter whenever currentData or history changes
+  useEffect(() => {
+    if (!currentData?.quarter || history.length === 0) return;
+    const idx = history.findIndex(
+      e => e.quarter === currentData.quarter && String(e.year) === String(currentData.year)
+    );
+    if (idx >= 0) setSelectedIndex(idx);
+  }, [currentData, history]);
+
   const entry = history[selectedIndex] || null;
+
+  // If the selected quarter matches the saved current snapshot, use its full
+  // statistics (contains cause_stage_matrix, type_stage_matrix, heatmaps, etc.)
+  // instead of the lean history fields.
+  const isCurrentEntry =
+    entry &&
+    currentData &&
+    entry.quarter === currentData.quarter &&
+    String(entry.year) === String(currentData.year);
+
   const data = entry
     ? {
         quarter: entry.quarter,
         year: entry.year,
-        statistics: {
-          summary: {
-            total_errors: entry.total_errors,
-            total_doses: entry.total_doses,
-            error_rate: entry.error_rate,
-          },
-          // Full objects (counts + percentages) needed by chart generator
-          error_cycle:    entry.error_cycle    || {},
-          detected_by:    entry.detected_by    || {},
-          duty_shift:     entry.duty_shift      || {},
-          staff_involved: entry.staff_involved  || {},
-          error_causes:   entry.error_causes    || {},
-          departments:    entry.departments     || {},
-          // Matrix/table data needed by DOCX generator pages 2, 4, 5
-          ncc_merp:           entry.ncc_merp           || {},
-          cause_stage_matrix: entry.cause_stage_matrix || {},
-          type_stage_matrix:  entry.type_stage_matrix  || {},
-          departments_all:    entry.departments_all    || {},
-        },
+        statistics: isCurrentEntry
+          ? currentData.statistics
+          : {
+              summary: {
+                total_errors: entry.total_errors,
+                total_doses:  entry.total_doses,
+                error_rate:   entry.error_rate,
+              },
+              error_cycle:        {},
+              detected_by:        {},
+              duty_shift:         {},
+              staff_involved:     {},
+              error_causes:       {},
+              departments:        {},
+              ncc_merp:           {},
+              cause_stage_matrix: {},
+              type_stage_matrix:  {},
+              departments_all:    {},
+            },
       }
     : null;
 
@@ -72,7 +91,7 @@ function MedicationReports({ language }) {
       }
     } catch (err) {
       console.error('Report generation error:', err);
-      alert(ar ? 'حدث خطأ في إنشاء التقرير' : 'Error generating report');
+      alert(t('errorGeneratingReport'));
     } finally {
       setGenerating(false);
     }
@@ -87,9 +106,7 @@ function MedicationReports({ language }) {
           <div className={styles.emptyStateIconWrapper}>
             <span className={styles.emptyStateIcon}>⏳</span>
           </div>
-          <h2 className={styles.emptyStateTitle}>
-            {ar ? 'جارٍ التحميل...' : 'Loading...'}
-          </h2>
+          <h2 className={styles.emptyStateTitle}>{t('loading')}</h2>
         </div>
       </div>
     );
@@ -104,14 +121,8 @@ function MedicationReports({ language }) {
           <div className={styles.emptyStateIconWrapper}>
             <span className={styles.emptyStateIcon}>💊</span>
           </div>
-          <h2 className={styles.emptyStateTitle}>
-            {ar ? 'لا توجد بيانات' : 'No Data Available'}
-          </h2>
-          <p className={styles.emptyStateText}>
-            {ar
-              ? 'يرجى رفع بيانات أخطاء الدواء أولاً لتتمكن من إنشاء التقرير'
-              : 'Please upload medication error data first to generate a report'}
-          </p>
+          <h2 className={styles.emptyStateTitle}>{t('medNoDataTitle')}</h2>
+          <p className={styles.emptyStateText}>{t('medNoDataText')}</p>
         </div>
       </div>
     );
@@ -125,7 +136,7 @@ function MedicationReports({ language }) {
   const statCards = [
     {
       icon: '⚠️',
-      label: ar ? 'إجمالي الأخطاء' : 'Total Errors',
+      label: t('totalErrors'),
       value: totalErrors,
       subValue: null,
       progress: 100,
@@ -134,7 +145,7 @@ function MedicationReports({ language }) {
     },
     {
       icon: '💉',
-      label: ar ? 'إجمالي الجرعات' : 'Total Doses',
+      label: t('totalDoses'),
       value: totalDoses,
       subValue: null,
       progress: 75,
@@ -143,7 +154,7 @@ function MedicationReports({ language }) {
     },
     {
       icon: '📉',
-      label: ar ? 'معدل الخطأ' : 'Error Rate',
+      label: t('errorRate'),
       value: errorRate,
       subValue: '%',
       progress: 50,
@@ -152,7 +163,7 @@ function MedicationReports({ language }) {
     },
     {
       icon: '📅',
-      label: ar ? 'الفصل / السنة' : 'Quarter / Year',
+      label: t('quarterYearLabel'),
       value: data.quarter,
       subValue: data.year,
       progress: 60,
@@ -161,7 +172,6 @@ function MedicationReports({ language }) {
     },
   ];
 
-  // ── Main view ─────────────────────────────────────────────────────────────
   return (
     <div className={styles.reportsContainer}>
 
@@ -173,14 +183,8 @@ function MedicationReports({ language }) {
               <span className={styles.headerIcon}>💊</span>
             </div>
             <div>
-              <h1 className={styles.headerTitle}>
-                {ar ? 'تقارير أخطاء الدواء' : 'Medication Error Reports'}
-              </h1>
-              <p className={styles.headerSubtitle}>
-                {ar
-                  ? 'توليد وتحميل تقرير Word التفصيلي'
-                  : 'Generate and download the detailed Word report'}
-              </p>
+              <h1 className={styles.headerTitle}>{t('medReportsTitle')}</h1>
+              <p className={styles.headerSubtitle}>{t('medReportsSubtitle')}</p>
             </div>
           </div>
           <button
@@ -190,13 +194,10 @@ function MedicationReports({ language }) {
             style={{ opacity: generating ? 0.7 : 1, color: TEAL_DARK }}
           >
             <span className={styles.downloadButtonIcon}>📄</span>
-            {generating
-              ? (ar ? 'جارٍ الإنشاء...' : 'Generating...')
-              : (ar ? 'إنشاء تقرير Word' : 'Generate Word Report')}
+            {generating ? t('generatingBtn') : t('generateWordReportBtn')}
           </button>
         </div>
       </div>
-
 
       {/* Download link banner */}
       {reportUrl && (
@@ -213,9 +214,7 @@ function MedicationReports({ language }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <span style={{ fontSize: '1.5rem' }}>✅</span>
-            <span style={{ fontWeight: 600 }}>
-              {ar ? 'تم إنشاء التقرير بنجاح!' : 'Word Report Generated Successfully!'}
-            </span>
+            <span style={{ fontWeight: 600 }}>{t('reportGeneratedSuccess')}</span>
           </div>
           <a
             href={reportUrl}
@@ -233,7 +232,7 @@ function MedicationReports({ language }) {
             }}
           >
             <span>⬇️</span>
-            {ar ? 'تحميل الوثيقة' : 'Download Word Document'}
+            {t('downloadDocument')}
           </a>
         </div>
       )}
@@ -249,7 +248,7 @@ function MedicationReports({ language }) {
             style={reportType === 'summary' ? { background: TEAL } : {}}
           >
             <span className={styles.typeButtonIcon}>📄</span>
-            {ar ? 'ملخص الإحصائيات' : 'Summary Report'}
+            {t('statisticsSummary')}
           </button>
           <button
             onClick={() => setReportType('detailed')}
@@ -259,7 +258,7 @@ function MedicationReports({ language }) {
             style={reportType === 'detailed' ? { background: TEAL } : {}}
           >
             <span className={styles.typeButtonIcon}>📋</span>
-            {ar ? 'توزيع الأخطاء' : 'Error Distribution'}
+            {t('errorDistributionTab')}
           </button>
         </div>
       </div>
@@ -275,7 +274,7 @@ function MedicationReports({ language }) {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}>
-              {ar ? 'ملخص الإحصائيات' : 'Statistics Summary'}
+              {t('statisticsSummary')}
             </h2>
           </div>
 
@@ -324,13 +323,17 @@ function MedicationReports({ language }) {
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
               }}>
-                {ar ? 'ملخص التقرير' : 'Report Summary'}
+                {t('reportSummaryTitle')}
               </h3>
             </div>
             <p className={styles.summarySectionText}>
-              {ar
-                ? `بناءً على بيانات ${data.quarter} ${data.year}، تم تسجيل ${totalErrors} خطأ دوائي من أصل ${totalDoses} جرعة موزعة، بمعدل خطأ ${errorRate}%.`
-                : `Based on ${data.quarter} ${data.year} data, ${totalErrors} medication errors were recorded out of ${totalDoses} doses dispensed, with an error rate of ${errorRate}%.`}
+              {t('medSummaryText', {
+                quarter: data.quarter,
+                year: data.year,
+                errors: totalErrors,
+                doses: totalDoses,
+                rate: errorRate,
+              })}
             </p>
           </div>
         </div>
@@ -347,27 +350,22 @@ function MedicationReports({ language }) {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}>
-              {ar ? 'توزيع الأخطاء' : 'Error Distribution'}
+              {t('errorDistributionTab')}
             </h2>
           </div>
 
-          {/* Error Cycle distribution */}
           <DistributionTable
-            title={ar ? 'مرحلة دورة الدواء' : 'Medication Process Stage'}
+            title={t('medProcessStageLabel')}
             data={entry.error_cycle}
             teal={TEAL} tealDark={TEAL_DARK} ar={ar}
           />
-
-          {/* Detected By distribution */}
           <DistributionTable
-            title={ar ? 'كُشف بواسطة' : 'Detected By'}
+            title={t('detectedByLabel')}
             data={entry.detected_by}
             teal={TEAL} tealDark={TEAL_DARK} ar={ar}
           />
-
-          {/* Duty Shift distribution */}
           <DistributionTable
-            title={ar ? 'الوردية' : 'Duty Shift'}
+            title={t('dutyShiftLabel')}
             data={entry.duty_shift}
             teal={TEAL} tealDark={TEAL_DARK} ar={ar}
           />
@@ -377,9 +375,8 @@ function MedicationReports({ language }) {
   );
 }
 
-// Small helper: renders a two-column (category / count) table
-// Accepts both old flat format {key:count} and new format {counts:{key:count}, ...}
 function DistributionTable({ title, data, teal, tealDark, ar }) {
+  const { t } = useTranslation();
   const countsDict = (data && typeof data === 'object' && data.counts) ? data.counts : (data || {});
   const rows = Object.entries(countsDict)
     .map(([k, v]) => [k, Number(v)])
@@ -396,13 +393,13 @@ function DistributionTable({ title, data, teal, tealDark, ar }) {
           <thead>
             <tr style={{ background: teal, color: 'white' }}>
               <th style={{ padding: '0.6rem 1rem', textAlign: ar ? 'right' : 'left' }}>
-                {ar ? 'التصنيف' : 'Category'}
+                {t('tableCategory')}
               </th>
               <th style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>
-                {ar ? 'العدد' : 'Count'}
+                {t('tableCount')}
               </th>
               <th style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>
-                {ar ? 'النسبة' : '%'}
+                {t('tablePercent')}
               </th>
             </tr>
           </thead>
@@ -417,7 +414,7 @@ function DistributionTable({ title, data, teal, tealDark, ar }) {
               </tr>
             ))}
             <tr style={{ background: '#ccfbf1', fontWeight: 700 }}>
-              <td style={{ padding: '0.5rem 1rem', color: tealDark }}>{ar ? 'الإجمالي' : 'Total'}</td>
+              <td style={{ padding: '0.5rem 1rem', color: tealDark }}>{t('tableTotal')}</td>
               <td style={{ padding: '0.5rem 1rem', textAlign: 'center', color: tealDark }}>{total}</td>
               <td style={{ padding: '0.5rem 1rem', textAlign: 'center', color: tealDark }}>100%</td>
             </tr>

@@ -1,6 +1,6 @@
 # Smart Healthcare Reporting System
 
-A comprehensive hospital reporting platform with four integrated modules: **Mortality Analysis**, **Medication Error Reporting**, **VAP Infection Control**, and **CLABSI Infection Control**. Each module processes Excel data uploaded by hospital staff, tracks quarterly history, generates interactive Arabic/English dashboards, and produces fully formatted Word reports with embedded charts and AI-written Arabic analysis.
+A comprehensive hospital reporting platform with **five integrated modules**: Mortality Analysis, Medication Error Reporting, VAP, CLABSI, and CAUTI Infection Control. Each module processes Excel data uploaded by hospital staff, tracks quarterly history, generates interactive Arabic/English dashboards, and produces fully formatted Arabic RTL Word reports with embedded charts and AI-written analysis.
 
 ---
 
@@ -12,25 +12,19 @@ A comprehensive hospital reporting platform with four integrated modules: **Mort
   - [Medication Error Reporting](#2-medication-error-reporting)
   - [VAP Infection Control](#3-vap-ventilator-associated-pneumonia)
   - [CLABSI Infection Control](#4-clabsi-central-line-associated-bloodstream-infection)
+  - [CAUTI Infection Control](#5-cauti-catheter-associated-urinary-tract-infection)
 - [Tech Stack](#tech-stack)
+- [Architecture Overview](#architecture-overview)
 - [Project Structure](#project-structure)
 - [Data Flow](#data-flow)
 - [Data Processing & Validation](#data-processing--validation)
-  - [Mortality Validation](#mortality-data-validation)
-  - [VAP Validation](#vap-data-validation)
-  - [Medication Error Validation](#medication-error-validation)
 - [Report Generation](#report-generation)
-  - [Mortality Report](#mortality-word-report)
-  - [VAP Report](#vap-word-report)
-  - [Medication Error Report](#medication-error-word-report)
 - [AI Analysis](#ai-analysis)
-  - [GPU Setup (Recommended)](#gpu-setup-recommended)
-  - [CPU Setup](#cpu-setup-fallback)
-  - [Editing the Model Path](#editing-the-model-path)
 - [History & Storage](#history--storage)
 - [API Endpoints](#api-endpoints)
 - [Installation](#installation)
 - [Running the System](#running-the-system)
+- [Local Deployment (Production)](#local-deployment-production)
 - [Usage Guide](#usage-guide)
 
 ---
@@ -45,7 +39,7 @@ This system replaces manual Excel-based hospital reporting with an automated pip
 4. Displays a live interactive dashboard
 5. Generates a complete Arabic RTL Word report with charts and AI-written analysis — in under 60 seconds
 
-No database required. All data is stored in versioned JSON files.
+No database required. All data is stored in versioned JSON flat files.
 
 ---
 
@@ -95,13 +89,13 @@ Monitors medication mistakes reported across hospital departments.
 
 Tracks VAP cases per 1000 ventilator days across ICU floors.
 
-**Floors tracked:** ICU, CCU, CSU, Ped, ICN, ITU
+**Floors tracked:** ICU, CCU, CSU, Ped, ICN, ITU, Neonatal
 
 **What it calculates per floor:**
 - VAP rate (‰) = cases / ventilator days × 1000
 - Status vs target rate (floor-specific targets)
 - Germ distribution (type, count, percentage)
-- Per-case details: age, gender, diagnosis, dates, duration of ventilation, risk factors, germ
+- Per-case details: age (with display format: "53Y", "3M", "10D"), gender, diagnosis, dates, ventilation duration, risk factors, germ
 
 **Target rates:**
 
@@ -113,6 +107,7 @@ Tracks VAP cases per 1000 ventilator days across ICU floors.
 | Ped   | 5.5       |
 | ICN   | 10.0      |
 | ITU   | 25.0      |
+| Neonatal | 0.0   |
 
 **Dashboard features:**
 - Gauge per floor (rate vs target, color-coded)
@@ -128,14 +123,35 @@ Tracks central-line infections per 1000 catheter days across departments.
 
 **What it calculates:**
 - CLABSI rate (‰) = cases / catheter days × 1000 per department
-- Germ distribution
+- Germ distribution with percentages
 - Quarter-over-quarter trend
+- Per-case details: age, gender, diagnosis, floor, risk factors, germ, dates
 
 **Dashboard features:**
 - Rate gauges per department
 - Trend chart
 - Germ heatmap
 - Case detail table
+
+---
+
+### 5. CAUTI (Catheter-Associated Urinary Tract Infection)
+
+Tracks urinary catheter infections per 1000 urinary catheter days across departments.
+
+**What it calculates:**
+- CAUTI rate (‰) = cases / urinary catheter days × 1000 per department
+- Germ distribution with percentages
+- Quarter-over-quarter trend
+- Per-case details: age, gender, diagnosis, floor, risk factors, germ, dates
+
+**Dashboard features:**
+- Rate gauges per department
+- Trend chart
+- Germ heatmap
+- Case detail table (same shared component as CLABSI)
+
+> **Note:** CAUTI uses the **same shared infrastructure** as CLABSI — shared processor, shared statistics engine (`InfectionControlStatistics`), shared docx generator (`ic_docx_generator.py`), shared chart generator, and shared frontend pages — configured by a type parameter.
 
 ---
 
@@ -161,6 +177,47 @@ Tracks central-line infections per 1000 catheter days across departments.
 
 ---
 
+## Architecture Overview
+
+The system is split into two processes that communicate over HTTP:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  React Frontend (port 3000 dev / port 80 production) │
+│  • React Router for module navigation                 │
+│  • Recharts for interactive dashboards                │
+│  • i18next for Arabic/English switching               │
+│  • Axios → HTTP → FastAPI                            │
+└────────────────────┬─────────────────────────────────┘
+                     │ HTTP (localhost:8000)
+┌────────────────────▼─────────────────────────────────┐
+│  FastAPI Backend (port 8000)                         │
+│  • 5 routers (mortality, medication, vap, clabsi,    │
+│    cauti) registered in main.py                      │
+│  • All heavy work done in Python                     │
+│  • No database — JSON flat files                     │
+└──────────────────────────────────────────────────────┘
+```
+
+### Shared Infection Control Architecture
+
+CLABSI, CAUTI, and VAP share a common backend engine located in `app/infection_control/`:
+
+```
+infection_control/
+├── ic_statistics.py      ← InfectionControlStatistics('clabsi'|'cauti'|'vap')
+├── ic_docx_generator.py  ← InfectionControlDocxGenerator (configurable per type)
+├── ic_chart_generator.py ← InfectionControlChartGenerator
+├── ic_ai_service.py      ← Shared AI service
+├── clabsi/               ← CLABSI-specific: processor, history, targets, docx config
+├── cauti/                ← CAUTI-specific: processor, history, targets, docx config
+└── vap/                  ← VAP-specific: processor, history, ai_service, chart, docx
+```
+
+Each module passes its type string at construction time. The shared engines handle calculations, charts, and report layout generically — only the column names, targets, and floor lists differ.
+
+---
+
 ## Project Structure
 
 ```
@@ -168,92 +225,116 @@ healthcare_motality_system/
 │
 ├── frontend/
 │   ├── package.json
-│   ├── vite.config.js
+│   ├── vite.config.js                 # Dev server on port 3000
 │   ├── tailwind.config.js
 │   └── src/
-│       ├── App.jsx                        # Main router + navbar
-│       ├── main.jsx                       # React entry point
+│       ├── App.jsx                    # Main router + all route definitions
+│       ├── main.jsx                   # React entry point
+│       ├── components/
+│       │   └── Navbar.jsx             # Top navigation bar
 │       ├── i18n/
-│       │   └── config.js                  # Arabic / English translation strings
-│       ├── styles/                        # CSS Modules (one file per page)
+│       │   └── config.js              # Arabic / English translation strings
+│       ├── styles/                    # CSS Modules (shared across modules)
+│       │   ├── Dashboard.module.css
+│       │   ├── Home.module.css
+│       │   ├── Reports.module.css
+│       │   └── Upload.module.css
 │       └── pages/
-│           ├── Home.jsx                   # Module selector (3 cards)
-│           ├── Dashboard.jsx              # Mortality dashboard
-│           ├── Upload.jsx                 # Mortality Excel upload
-│           ├── Reports.jsx                # Mortality Word report
-│           ├── Analysis.jsx               # Mortality deep analysis
-│           ├── HistoricalComparisons.jsx  # Quarterly trend comparison
-│           ├── MedicationUpload.jsx       # Medication error upload
-│           ├── MedicationDashboard.jsx    # Medication error dashboard
-│           ├── MedicationReports.jsx      # Medication error Word report
-│           ├── VapUpload.jsx              # VAP Excel upload
-│           ├── VapDashboard.jsx           # VAP gauges, heatmap, trends
-│           ├── VapReports.jsx             # VAP Word report generator
-│           ├── ClabsiUpload.jsx           # CLABSI Excel upload
-│           └── ClabsiDashboard.jsx        # CLABSI dashboard
+│           ├── Home.jsx               # Module selector home page
+│           ├── mortality/
+│           │   ├── Dashboard.jsx      # Mortality charts and KPIs
+│           │   ├── Upload.jsx         # Mortality Excel upload
+│           │   └── Reports.jsx        # Mortality Word report
+│           ├── medication/
+│           │   ├── Dashboard.jsx      # Medication error dashboard
+│           │   ├── Upload.jsx         # Medication error upload
+│           │   └── Reports.jsx        # Medication error Word report
+│           └── infection_control/
+│               ├── Upload.jsx         # Shared upload page (tab: vap/clabsi/cauti)
+│               ├── Reports.jsx        # Shared reports page (type prop)
+│               ├── vap/
+│               │   └── Dashboard.jsx  # VAP gauges, heatmap, trend
+│               ├── clabsi/
+│               │   └── Dashboard.jsx  # CLABSI gauges, germ heatmap
+│               └── cauti/
+│                   └── Dashboard.jsx  # CAUTI gauges, germ heatmap
 │
 ├── python-service/
-│   ├── main.py                            # FastAPI app: CORS, routers, startup
+│   ├── main.py                        # FastAPI app: CORS, all 5 routers, startup
 │   ├── requirements.txt
+│   ├── assets/
+│   │   └── LOGO.png                   # Hospital logo embedded in Word reports
 │   └── app/
-│       ├── api/
-│       │   ├── routes.py                  # Mortality endpoints (/api/*)
-│       │   ├── medication_routes.py       # Medication endpoints (/api/medication/*)
-│       │   ├── vap_routes.py              # VAP endpoints (/api/vap/*)
-│       │   └── clabsi_routes.py           # CLABSI endpoints (/api/clabsi/*)
-│       ├── core/                          # Mortality module
-│       │   ├── data_processor.py          # Excel parsing, cleaning, validation
-│       │   ├── excel_handler.py           # Multi-sheet Excel reader
-│       │   ├── statistics.py              # KPI calculations, department breakdown
-│       │   └── history_manager.py         # Read/write mortality_history.json
-│       ├── services/                      # Mortality report generators
-│       │   ├── docx_generator.py          # 6-page Arabic Word report
-│       │   ├── chart_generator.py         # 10 Matplotlib charts
-│       │   └── ai_service.py              # Qwen AI paragraphs (mortality)
-│       ├── medication_error/              # Medication error module
-│       │   ├── data_processor.py
-│       │   ├── statistics.py
-│       │   ├── history_manager.py
-│       │   ├── chart_generator.py
-│       │   ├── docx_generator.py
-│       │   └── medication_error_ai_service.py
-│       ├── infection_control/
-│       │   └── VAP/                       # VAP module
-│       │       ├── vap_processor.py       # openpyxl Excel parser
-│       │       ├── vap_statistics.py      # Rate, germ, case table calculations
-│       │       ├── vap_history.py         # Read/write VAP_history.json
-│       │       ├── vap_chart_generator.py # 6 Matplotlib charts
-│       │       ├── vap_docx_generator.py  # 7-page Arabic Word report
-│       │       └── vap_ai_service.py      # Qwen AI paragraphs (VAP, 11 methods)
-│       └── clabsi/                        # CLABSI module
-│           ├── clabsi_processor.py
-│           └── clabsi_history.py
+│       ├── config.py                  # Settings (paths, env vars)
+│       ├── api/                       # FastAPI route handlers
+│       │   ├── mortality_routes.py    # /api/*
+│       │   ├── medication_routes.py   # /api/medication/*
+│       │   ├── vap_routes.py          # /api/vap/*
+│       │   ├── clabsi_routes.py       # /api/clabsi/*
+│       │   └── cauti_routes.py        # /api/cauti/*
+│       ├── mortality/                 # Mortality module
+│       │   ├── data_processor.py      # Excel parsing, cleaning, validation
+│       │   ├── excel_handler.py       # Multi-sheet Excel reader with auto-detection
+│       │   ├── statistics.py          # KPI calculations, department breakdown
+│       │   ├── history_manager.py     # Read/write mortality_history.json
+│       │   ├── docx_generator.py      # 6-page Arabic Word report
+│       │   ├── chart_generator.py     # 10 Matplotlib charts
+│       │   └── ai_service.py          # Qwen AI paragraphs (mortality)
+│       ├── medication/                # Medication error module
+│       │   ├── data_processor.py      # Excel parsing and normalization
+│       │   ├── statistics.py          # Error type, severity, department stats
+│       │   ├── history_manager.py     # Read/write medication_error_history.json
+│       │   ├── chart_generator.py     # 7 Matplotlib charts
+│       │   ├── docx_generator.py      # Multi-page Arabic Word report
+│       │   └── ai_service.py          # Qwen AI paragraphs (medication)
+│       └── infection_control/         # Shared IC engine + per-type modules
+│           ├── ic_statistics.py       # InfectionControlStatistics('clabsi'|'cauti'|'vap')
+│           ├── ic_docx_generator.py   # InfectionControlDocxGenerator (shared report builder)
+│           ├── ic_chart_generator.py  # InfectionControlChartGenerator (shared charts)
+│           ├── ic_ai_service.py       # Shared AI service for IC modules
+│           ├── clabsi/
+│           │   ├── processor.py       # openpyxl Excel parser → normalized case dicts
+│           │   ├── history.py         # clabsi_current.json + clabsi_history.json
+│           │   ├── clabsi_targets.py  # Per-floor target rates
+│           │   └── docx_generator.py  # CLABSI-specific docx config wrapper
+│           ├── cauti/
+│           │   ├── processor.py       # openpyxl Excel parser → normalized case dicts
+│           │   ├── history.py         # cauti_current.json + cauti_history.json
+│           │   ├── cauti_targets.py   # Per-floor target rates
+│           │   └── docx_generator.py  # CAUTI-specific docx config wrapper
+│           └── vap/
+│               ├── processor.py       # openpyxl Excel parser + age_display field
+│               ├── history.py         # VAP_current.json + VAP_history.json + FLOOR_TARGETS
+│               ├── chart_generator.py # 6 Matplotlib charts (VAP-specific)
+│               ├── docx_generator.py  # VAP Word report
+│               └── ai_service.py      # Qwen AI paragraphs (VAP, 11 methods)
 │
-├── storage/                               # Runtime-generated files (not committed)
+├── storage/                           # Runtime-generated (not committed except .gitkeep)
 │   ├── data/
 │   │   ├── mortality_history.json
-│   │   ├── VAP_history_test.json
+│   │   ├── VAP_history.json
+│   │   ├── VAP_current.json           # Latest VAP quarter raw cases
 │   │   ├── clabsi_history.json
+│   │   ├── clabsi_current.json        # Latest CLABSI quarter raw cases
+│   │   ├── cauti_history.json
+│   │   ├── cauti_current.json         # Latest CAUTI quarter raw cases
 │   │   └── medication_error_history.json
-│   ├── reports/                           # Generated .docx files
-│   ├── charts/                            # Generated .png chart files
-│   ├── uploads/                           # Temporary Excel uploads
+│   ├── reports/                       # Generated .docx files
+│   ├── charts/                        # Generated .png chart files
+│   ├── uploads/                       # Temporary Excel uploads
 │   └── temp/
 │
-├── sample_data/                           # Example Excel files for testing
-│   ├── mortality-data2.xlsx
-│   ├── Medication Error3.xlsx
-│   └── infection_control.xlsx
-│
-├── docker-compose.yml
-└── .gitignore
+└── sample_data/                       # Example Excel files for testing
+    ├── mortality-data2.xlsx
+    ├── Medication Error3.xlsx
+    └── infection_control.xlsx
 ```
 
 ---
 
 ## Data Flow
 
-The same pipeline applies to all modules:
+### Upload Flow (same pattern for all 5 modules)
 
 ```
 Hospital Staff
@@ -266,30 +347,44 @@ React Upload Page
     ▼
 FastAPI Route Handler
     ├── 1. Validate file type (.xlsx / .xls only)
-    ├── 2. Save file temporarily to storage/uploads/
-    ├── 3. Parse Excel → Pandas DataFrame / openpyxl rows
-    ├── 4. Clean & validate data (see validation section)
-    ├── 5. Calculate statistics (rates, breakdowns, tables)
-    ├── 6. Save quarter to history JSON file
+    ├── 2. Save file temporarily to storage/uploads/ or storage/temp/
+    ├── 3. Parse Excel → normalized case dicts
+    │       • Mortality: Pandas DataFrame (excel_handler → data_processor)
+    │       • IC (VAP/CLABSI/CAUTI): openpyxl row-by-row (processor.py)
+    │       • Medication: Pandas DataFrame (data_processor.py)
+    ├── 4. Calculate statistics
+    │       • Mortality: statistics.py (custom)
+    │       • IC: InfectionControlStatistics(type).calculate_all_statistics()
+    │       • Medication: statistics.py (custom)
+    ├── 5. Save raw cases to *_current.json (IC modules only)
+    ├── 6. Save quarter summary to *_history.json
     ├── 7. Delete temp file
     └── 8. Return statistics JSON to React
     │
     ▼
-React Dashboard (live charts and KPIs)
+React Dashboard (live charts and KPIs from returned JSON)
+```
 
-    ── Later ──
+### Report Generation Flow
 
+```
 React Reports Page
-    │  User selects quarter → clicks Generate Report
-    │  POST /generate-report { statistics, quarter, year }
+    │  User selects quarter → clicks "Generate Report"
+    │  POST /generate-report { quarter, year, [statistics] }
     ▼
 FastAPI Report Route
-    ├── 1. Load history (excluding current quarter)
-    ├── 2. Generate charts (Matplotlib → BytesIO PNG)
-    ├── 3. Call AI service (Qwen LLM → Arabic paragraphs)
-    ├── 4. Build Word document (python-docx)
-    ├── 5. Save .docx to storage/reports/
-    └── 6. Unload AI model from memory
+    ├── 1. Load history (for trend charts across quarters)
+    ├── 2. Load current raw cases from *_current.json (IC modules)
+    ├── 3. Generate charts (Matplotlib → BytesIO PNG, never written to disk)
+    ├── 4. Call AI service:
+    │       • Load Qwen 2.5-7B GGUF model via llama-cpp-python
+    │       • Generate 2–3 sentence Arabic analysis per section
+    │       • Validate output (length, Arabic chars, no CJK contamination)
+    │       • Fall back to static Arabic text if AI fails or model not found
+    │       • Unload model from memory after report completes
+    ├── 5. Build Word document (python-docx with raw XML for RTL/BiDi)
+    ├── 6. Save .docx to storage/reports/
+    └── 7. Return file path to React
     │
     ▼
 React shows download link
@@ -298,24 +393,32 @@ React shows download link
 Browser downloads the .docx file
 ```
 
+### Current JSON Pattern (IC Modules)
+
+VAP, CLABSI, and CAUTI each maintain two separate JSON files:
+
+| File | Purpose |
+|------|---------|
+| `*_history.json` | Summary statistics for every quarter (rates, floor stats, germ counts) |
+| `*_current.json` | Raw case rows from the latest uploaded quarter (for case detail tables in reports) |
+
+The report generator reads **both**: history for trend charts, current for per-patient case tables.
+
 ---
 
 ## Data Processing & Validation
 
 ### Mortality Data Validation
 
-The mortality processor applies **conservative cleaning** — it never deletes records. Every death row is preserved even if some fields are incomplete.
+The mortality processor applies **conservative cleaning** — no records are ever deleted.
 
-**Step 1 — Source Auto-Detection**
+**Source Auto-Detection**
 
-The system automatically detects whether the file is a proper Excel file (Arabic column names) or a CSV exported with encoding issues (garbled characters):
+The system detects whether the file is a proper Excel (Arabic column names) or a misencoded CSV export:
+- If > 10 garbled characters and < 3 Arabic column names → **CSV mode** (maps by position)
+- Otherwise → **Excel mode** (maps by Arabic/English column name)
 
-- If more than 10 garbled characters (`?`, `\ufffd`) and fewer than 3 Arabic column names → **CSV mode** (maps columns by position)
-- Otherwise → **Excel mode** (maps columns by name)
-
-**Step 2 — Column Standardization**
-
-Arabic and English hospital column names are normalized to standard internal names:
+**Column Standardization**
 
 | Hospital Column | Internal Name |
 |----------------|--------------|
@@ -329,11 +432,7 @@ Arabic and English hospital column names are normalized to standard internal nam
 | `المبنى` | `building` |
 | `الإختصاص` | `specialty` |
 
-Also handles: column names with trailing spaces (a real occurrence in hospital Excel files), duplicate column names (keeps the first occurrence).
-
-**Step 3 — Age Cleaning**
-
-Age values arrive in multiple formats and are normalized to numeric years:
+**Age Cleaning**
 
 | Input | Output |
 |-------|--------|
@@ -342,199 +441,148 @@ Age values arrive in multiple formats and are normalized to numeric years:
 | `"10 days"` | `0.027` years |
 | `-1`, `999`, empty | `"Unknown"` (record kept) |
 
-**Step 4 — Gender Standardization**
-
-| Input | Normalized |
-|-------|-----------|
-| `"ذكر"` / `"male"` / `"M"` | `"ذكر"` |
-| `"انثى"` / `"female"` / `"F"` | `"انثى"` |
-
-**Step 5 — KPI Flag**
-
-Each death record has an `include_kpi` flag determining whether it counts toward the official mortality rate:
+**KPI Flag** — determines if the death counts toward the official mortality rate:
 
 | Input | Result |
 |-------|--------|
 | `"YES"` / `"yes"` / `"Y"` / `"نعم"` / `1` / `True` | KPI = YES |
 | Everything else | KPI = NO |
 
-KPI deaths are used for the official rate. Non-KPI deaths (e.g., DOA, stillborn) are tracked separately but excluded from the rate calculation.
-
-**Step 6 — Length of Stay**
-
-If the LOS column is missing or empty, it is automatically calculated:
-```
-LOS = death_date − admission_date  (in days)
-```
-
-**Step 7 — Missing Value Handling**
-
-- Text fields → filled with `"Unknown"` or `"غير محدد"`
-- Numeric fields → kept as `None` (not `0`, to avoid skewing averages)
-- No record is ever deleted
-
-**Step 8 — Age Categories**
-
-After cleaning, every record is assigned to one of 8 age groups used for dashboard charts and historical tracking:
-
+**Age Categories** assigned after cleaning:
 ```
 < 5 years | 5–15 | 16–30 | 31–50 | 51–60 | 61–70 | 71–80 | 81+
 ```
 
 ---
 
-### VAP Data Validation
+### Infection Control Data Validation (VAP / CLABSI / CAUTI)
 
-VAP data is processed with `openpyxl` directly (row by row) rather than Pandas, because each case row requires structured multi-field parsing.
+IC data is processed with `openpyxl` directly (row by row) rather than Pandas, because each row requires structured multi-field parsing including boolean risk factor columns.
 
-**Step 1 — Column Normalization**
-
-All column header variations are normalized:
-```python
+**Column Normalization**
+```
 "  Heart disease " → strip → lowercase → "heart disease" → "heart_disease"
 ```
-This handles a real issue in hospital Excel files where column names have leading/trailing spaces.
 
-**Step 2 — Age Parsing**
-
-VAP patient ages are stored as formatted strings and converted to numeric years:
+**Age Parsing (VAP)**
 
 | Input | Output |
 |-------|--------|
 | `"45Y"` | `45.0` years |
-| `"3M"` | `0.25` years (3 ÷ 12) |
-| `"10D"` | `0.027` years (10 ÷ 365) |
-| `"N/A"` / `"—"` / empty | `None` |
+| `"3M"` | `0.25` years |
+| `"10D"` | `0.027` years |
+| `"N/A"` / empty | `None` |
 
-The same parser is used in the AI service (`_parse_age_display`) to compute average age per floor for the narrative analysis.
+An `age_display` field is also stored (e.g., `"53Y"`, `"3M"`, `"10D"`) for rendering in report tables.
 
-**Step 3 — Date Parsing**
-
-Date fields (admission, intubation, infection) try 4 formats automatically:
-
+**Date Parsing** — 4 formats tried automatically:
 ```
-DD/MM/YYYY  →  25/01/2025
-DD/MM/YY    →  25/01/25
-YYYY-MM-DD  →  2025-01-25
-MM/DD/YYYY  →  01/25/2025
+DD/MM/YYYY  |  DD/MM/YY  |  YYYY-MM-DD  |  MM/DD/YYYY
 ```
 
-**Step 4 — Risk Factor Parsing**
-
-13 Yes/No columns (Diabetic, Hypertension, COPD, Cancer, etc.) are each normalized:
+**Risk Factor Parsing** — 13+ Yes/No boolean columns:
 
 | Input | Result |
 |-------|--------|
-| `"Yes"` / `"yes"` / `True` / `1` / `"نعم"` | `True` |
-| `"No"` / `"no"` / `False` / `0` | `False` |
+| `"Yes"` / `True` / `1` / `"نعم"` | `True` |
+| `"No"` / `False` / `0` | `False` |
 
-Per-case risk factors are collected into a comma-separated string:
+**Rate Calculation (per floor)**
 ```
-"Diabetic / السكري, COPD / مرض الانسداد الرئوي, Cancer / السرطان"
-```
+IC Rate (‰) = (cases on floor / device days on floor) × 1000
 
-**Step 5 — VAP Rate Calculation**
-
-Rate is calculated per floor using the ventilator days entered by the user on upload:
-
-```
-VAP Rate (‰) = (number of cases on floor / ventilator days on floor) × 1000
+VAP:   device days = ventilator days
+CLABSI: device days = catheter days
+CAUTI:  device days = urinary catheter days
 ```
 
-Each floor rate is compared against its target. Status is flagged as above/below target.
-
-**Step 6 — Germ Distribution**
-
-For each floor, germs are counted across all cases and converted to percentages. This feeds the heatmap on the dashboard and the germ comparison charts in the report.
+**Floor Matching** — `_match_floor()` handles name aliases:
+```python
+"ICU" matches: "ICU", "INTENSIVE CARE UNIT", "MICU", "SICU", "TICU"
+"ICN" matches: "ICN", "NICU", "NEONATAL ICU", "INFANT CARE NURSERY"
+```
+This ensures floors are matched even if the Excel uses slightly different spelling.
 
 ---
 
 ### Medication Error Validation
 
-- Error type is normalized to a fixed set of categories (wrong dose, wrong drug, wrong patient, etc.)
-- Severity levels are mapped to standard tiers (minor, moderate, severe)
-- Department names are trimmed and lowercased for consistent grouping
-- Empty or unrecognized values default to `"غير محدد"` (unspecified) without dropping the record
+- Error type normalized to fixed categories
+- Severity levels mapped to standard tiers (minor, moderate, severe)
+- Department names trimmed and lowercased for consistent grouping
+- Empty or unrecognized values default to `"غير محدد"` — no record dropped
 
 ---
 
 ## Report Generation
 
-### Mortality Word Report
-
-A 6-page fully formatted Arabic RTL Word document.
+### Mortality Word Report (6 pages)
 
 | Page | Contents |
 |------|---------|
-| 1 | Metadata table, results table (KPI vs total deaths), mortality trend chart, analysis paragraph |
+| 1 | Metadata table, results table (KPI vs total deaths), trend chart, AI analysis box |
 | 2 | Building distribution chart (BCI/RAH), admission source chart, age distribution chart |
-| 3 | Department pie chart + data table, age-vs-quarter historical trend chart |
+| 3 | Department pie chart + data table, age-vs-quarter trend chart |
 | 4 | Department comparison chart (current vs previous quarter), WHO age category chart |
 | 5 | WHO diagnosis categories chart, doctor specialty table |
 | 6 | Final result statement, previous actions table, current actions table, approval/signature table |
 
-All 10 charts are generated in memory as `BytesIO` PNG buffers (never written to disk) and embedded directly into the Word file.
+All 10 charts generated as `BytesIO` PNG buffers in memory (never written to disk) and embedded directly.
 
 ---
 
-### VAP Word Report
+### VAP Word Report (multi-page)
 
-A 7-page Arabic RTL Word document covering all three main ICU floors.
+| Section | Contents |
+|---------|---------|
+| Page 1 | Metadata, 6-quarter results table, floor comparison table, AI analysis |
+| Per-floor sections | Trend chart + AI analysis, Germ comparison chart + AI analysis, Case detail table + AI analysis |
+| Last page | Final result, action tracking tables, approval table |
 
-| Page | Contents |
-|------|---------|
-| 1 | Metadata, results table (6-quarter summary), floor comparison table, AI analysis |
-| 2 | ICU trend chart + AI analysis, ICU germ comparison chart + AI analysis |
-| 3 | ICU case detail table + AI analysis, CCU trend chart + AI analysis |
-| 4 | CCU germ comparison chart + AI analysis, CCU case detail table + AI analysis |
-| 5 | ICN trend chart + AI analysis, ICN germ comparison chart + AI analysis |
-| 6 | ICN case detail table + AI analysis |
-| Last | Final result statement, action tracking tables, approval table |
-
-**Case detail tables** include per-patient rows with: case number, age, gender, diagnosis, admission date, intubation date, infection date, germ, risk factors, ventilation duration.
+**Case detail tables** are built dynamically from `VAP_current.json` — only floors that actually have cases appear. Columns: case number, age (display format), gender, diagnosis, admission date, intubation date, infection date, germ, risk factors, ventilation duration.
 
 ---
 
-### Medication Error Word Report
+### CLABSI / CAUTI Word Reports
 
-A multi-section Arabic RTL Word document with:
+Identical structure built by `InfectionControlDocxGenerator` with CLABSI/CAUTI config:
 
-- Summary KPI table
-- Error type breakdown chart and table
-- Severity distribution chart
-- Department comparison charts (current vs previous quarter)
-- AI-written Arabic analysis for each section
+| Section | Contents |
+|---------|---------|
+| Page 1 | Metadata, 6-quarter results table, floor comparison table |
+| Per-floor sections | Trend chart + analysis, Germ chart + analysis, Case detail table + analysis |
+| Last page | Final result, action tables, approval table |
+
+Case detail tables built dynamically from `clabsi_current.json` / `cauti_current.json`.
 
 ---
 
 ## AI Analysis
 
-All three modules use the same local AI model: **Qwen 2.5-7B Instruct** in GGUF format, loaded via `llama-cpp-python`. The model runs entirely on your own machine — no internet or cloud API required.
+All modules use the same local AI model: **Qwen 2.5-7B Instruct** in GGUF format, loaded via `llama-cpp-python`. Runs entirely on your machine — no internet or API required.
 
 For each report section, the AI:
 1. Receives a focused Arabic prompt with exact numbers from the data
 2. Generates a 2–3 sentence Arabic analysis paragraph
-3. The output is validated (minimum length, Arabic characters present, no CJK contamination, no bullet points)
-4. If validation fails → a pre-written static fallback is used instead
+3. Output is validated (minimum length, Arabic characters present, no CJK contamination, no bullet points)
+4. If validation fails → a pre-written static Arabic fallback is used
 
 **The report is always complete even if the AI fails or the model is not installed.**
 
-After the report is saved, the model is automatically unloaded from memory (`vap_ai_service.unload()`) so it does not conflict with other modules.
+After the report is saved, the model is automatically unloaded from memory so it does not conflict with other modules.
 
 ---
 
 ### GPU Setup (Recommended)
 
-Using a GPU dramatically speeds up report generation (from ~60s to ~10s).
+Using a GPU dramatically speeds up generation (~10s GPU vs ~60s CPU).
 
 **Requirements:**
 - NVIDIA GPU with CUDA support
-- [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) — install version matching your GPU driver
-- Verify installation: `nvcc --version` and `nvidia-smi`
+- [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) matching your driver version
+- Verify: `nvcc --version` and `nvidia-smi`
 
-**Install llama-cpp-python with CUDA support (pre-built wheels):**
-
-Choose the command matching your installed CUDA version. Check your version with `nvcc --version` or `nvidia-smi`.
+**Install llama-cpp-python (pre-built wheel — no compiler needed):**
 
 ```bash
 # CUDA 12.2
@@ -550,21 +598,38 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu118
 ```
 
-> This installs a pre-built binary — no compiler or CMake required. If your CUDA version is not listed above, use the [CMake build method](https://github.com/abetlen/llama-cpp-python#installation-with-hardware-acceleration) instead.
+---
 
-**Download the model:**
+### CPU Setup (Fallback)
 
-Download `qwen2.5-7b-instruct-q3_k_m.gguf` (or any Qwen 2.5 GGUF variant) and place it in:
+```bash
+pip install llama-cpp-python --prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
-C:\models\qwen2.5-7b-instruct-q3_k_m.gguf
-```
 
-Or download it directly from Hugging Face using Python:
+Then open each AI service file and change `n_gpu_layers=-1` to `n_gpu_layers=0`:
+
+- `python-service/app/mortality/ai_service.py`
+- `python-service/app/medication/ai_service.py`
+- `python-service/app/infection_control/vap/ai_service.py`
+- `python-service/app/infection_control/ic_ai_service.py`
+
+---
+
+### Download the Model
 
 ```bash
 pip install huggingface_hub
-python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Qwen/Qwen2.5-7B-Instruct-GGUF', filename='qwen2.5-7b-instruct-q3_k_m.gguf', local_dir='C:/models')"
+python -c "
+from huggingface_hub import hf_hub_download
+hf_hub_download(
+    repo_id='Qwen/Qwen2.5-7B-Instruct-GGUF',
+    filename='qwen2.5-7b-instruct-q3_k_m.gguf',
+    local_dir='C:/models'
+)
+"
 ```
+
+Or manually download and place at `C:\models\qwen2.5-7b-instruct-q3_k_m.gguf`.
 
 The model is searched in these locations (in order):
 ```
@@ -575,58 +640,13 @@ models/*.gguf
 python-service/models/*.gguf
 ```
 
-In the AI service files, `n_gpu_layers=-1` means **all layers on GPU**. This is the default.
-
----
-
-### CPU Setup (Fallback)
-
-If you do not have a compatible GPU or CUDA toolkit:
-
-```bash
-pip install llama-cpp-python --prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-```
-
-Then open both AI service files and change `n_gpu_layers`:
-
-**File 1:** `python-service/app/services/ai_service.py`
-
-**File 2:** `python-service/app/infection_control/VAP/vap_ai_service.py`
-
-Find the `Llama(...)` constructor in `_load_llm()` and change:
-
-```python
-# FROM (GPU):
-n_gpu_layers=-1,
-
-# TO (CPU only):
-n_gpu_layers=0,
-```
-
-> **Note:** CPU inference is significantly slower (~3–5 minutes per report vs ~10–60 seconds on GPU). The report quality is identical.
+Any quantization variant works (`q3_k_m`, `q4_k_m`, `q5_k_m`). Higher = better quality, more VRAM.
 
 ---
 
 ### Editing the Model Path
 
-If your model file is stored in a different location, edit the model search patterns in the `_load_llm()` method of each AI service file:
-
-**`python-service/app/services/ai_service.py`** — mortality + medication error AI
-**`python-service/app/infection_control/VAP/vap_ai_service.py`** — VAP AI
-
-Find this block and add your path:
-
-```python
-candidates = []
-for pattern in [
-    "C:/models/*.gguf",          # ← change this to your path
-    "models/*.gguf",
-    ...
-]:
-    candidates.extend(glob.glob(pattern))
-```
-
-Or set the environment variable before starting the backend:
+If your model is in a different location, set the environment variable before starting:
 
 ```bash
 # Windows
@@ -636,20 +656,23 @@ set QWEN_MODEL_PATH=D:/my-models/qwen2.5-7b-instruct-q3_k_m.gguf
 export QWEN_MODEL_PATH=/home/user/models/qwen2.5-7b-instruct-q3_k_m.gguf
 ```
 
+Or edit the `candidates` list in `_load_llm()` in each AI service file.
+
 ---
 
 ## History & Storage
 
 Each module stores quarterly data in a JSON file. Uploading a quarter that already exists **overwrites** it. New quarters are appended in chronological order.
 
-| Module | History File |
-|--------|-------------|
-| Mortality | `storage/data/mortality_history.json` |
-| VAP | `storage/data/VAP_history_test.json` |
-| CLABSI | `storage/data/clabsi_history.json` |
-| Medication Error | `storage/data/medication_error_history.json` |
+| Module | History File | Current File |
+|--------|-------------|-------------|
+| Mortality | `storage/data/mortality_history.json` | — |
+| VAP | `storage/data/VAP_history.json` | `storage/data/VAP_current.json` |
+| CLABSI | `storage/data/clabsi_history.json` | `storage/data/clabsi_current.json` |
+| CAUTI | `storage/data/cauti_history.json` | `storage/data/cauti_current.json` |
+| Medication Error | `storage/data/medication_error_history.json` | — |
 
-Each history entry stores everything needed for trend charts and report generation without re-uploading the Excel file.
+The `*_current.json` files (IC modules only) store the raw case rows from the last uploaded quarter. These are read by the report generator to build per-patient case tables without needing to re-upload the Excel file.
 
 **VAP history entry example:**
 ```json
@@ -657,34 +680,45 @@ Each history entry stores everything needed for trend charts and report generati
   "quarter": "الفصل الرابع",
   "year": "2025",
   "floors": {
-    "ICU": { "cases": 2, "vent_days": 1200, "rate": 1.67, "target": 25.0 },
-    "CCU": { "cases": 4, "vent_days": 980,  "rate": 4.08, "target": 15.0 }
+    "ICU": { "cases": 2, "ventilator_days": 1200, "rate": 1.67, "target": 25.0 },
+    "CCU": { "cases": 4, "ventilator_days": 980,  "rate": 4.08, "target": 15.0 }
   },
-  "germs_overall": { "Klebsiella": 3, "Acinetobacter": 2 },
-  "icu_cases_table": [
-    { "age": "45Y", "gender": "Male", "germs": "Klebsiella", "risk_factors": "Diabetic, COPD" }
-  ],
-  "ccu_cases_table": [...],
-  "icn_cases_table": [...]
+  "germs_overall": { "Klebsiella": 3, "Acinetobacter": 2 }
 }
 ```
 
-Generated reports are saved to `storage/reports/` and charts to `storage/charts/`. Both directories are excluded from git (only `.gitkeep` is committed to preserve the folder).
+**VAP current entry example:**
+```json
+{
+  "year": "2025",
+  "quarter": "الفصل الرابع",
+  "cases": [
+    {
+      "floor": "ICU", "age": 53.0, "age_display": "53Y", "gender": "Male",
+      "diagnosis": "ARDS", "germs": "Klebsiella",
+      "diabetic": true, "copd": false,
+      "admission_date": "2025-10-01", "infection_date": "2025-10-07"
+    }
+  ]
+}
+```
+
+Generated reports → `storage/reports/` | Charts → `storage/charts/`
 
 ---
 
 ## API Endpoints
 
-All endpoints are documented interactively at **http://localhost:8000/docs** (Swagger UI).
+All endpoints documented interactively at **http://localhost:8000/docs** (Swagger UI).
 
 ### Mortality
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/process-data` | Upload and process mortality Excel file |
+| `POST` | `/api/process-data` | Upload and process mortality Excel |
 | `GET` | `/api/history` | Get all saved quarterly records |
 | `POST` | `/api/generate-report` | Generate mortality Word report |
-| `GET` | `/api/download-report?fileName=...` | Download generated .docx file |
+| `GET` | `/api/download-report?fileName=...` | Download generated .docx |
 | `GET` | `/api/test` | Health check |
 
 ### Medication Error
@@ -694,7 +728,7 @@ All endpoints are documented interactively at **http://localhost:8000/docs** (Sw
 | `POST` | `/api/medication/process-data` | Upload and process medication error Excel |
 | `GET` | `/api/medication/history` | Get all saved quarterly records |
 | `POST` | `/api/medication/generate-report` | Generate medication error Word report |
-| `GET` | `/api/medication/download-report?fileName=...` | Download generated .docx file |
+| `GET` | `/api/medication/download-report?fileName=...` | Download generated .docx |
 
 ### VAP Infection Control
 
@@ -703,10 +737,10 @@ All endpoints are documented interactively at **http://localhost:8000/docs** (Sw
 | `POST` | `/api/vap/process-data` | Upload VAP Excel + floor ventilator days |
 | `GET` | `/api/vap/history` | Get all saved quarters (oldest → newest) |
 | `GET` | `/api/vap/history/latest` | Get the most recent quarter |
-| `GET` | `/api/vap/chart-data` | Get data for the 6 dashboard charts |
-| `GET` | `/api/vap/table-comparison?n=5` | Get multi-floor comparison table (last n quarters) |
+| `GET` | `/api/vap/chart-data` | Get data for dashboard charts |
+| `GET` | `/api/vap/table-comparison?n=5` | Multi-floor comparison table (last n quarters) |
 | `POST` | `/api/vap/generate-report` | Generate VAP Word report |
-| `GET` | `/api/vap/download-report?fileName=...` | Download generated .docx file |
+| `GET` | `/api/vap/download-report?fileName=...` | Download generated .docx |
 | `DELETE` | `/api/vap/history/{quarter}/{year}` | Delete a specific quarter |
 
 ### CLABSI Infection Control
@@ -716,7 +750,20 @@ All endpoints are documented interactively at **http://localhost:8000/docs** (Sw
 | `POST` | `/api/clabsi/process-data` | Upload CLABSI Excel + catheter days |
 | `GET` | `/api/clabsi/history` | Get all saved quarterly records |
 | `GET` | `/api/clabsi/history/latest` | Get the most recent quarter |
+| `POST` | `/api/clabsi/generate-report` | Generate CLABSI Word report |
+| `GET` | `/api/clabsi/download-report?fileName=...` | Download generated .docx |
 | `DELETE` | `/api/clabsi/history/{year}/{quarter}` | Delete a specific quarter |
+
+### CAUTI Infection Control
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/cauti/process-data` | Upload CAUTI Excel + urinary catheter days |
+| `GET` | `/api/cauti/history` | Get all saved quarterly records |
+| `GET` | `/api/cauti/history/latest` | Get the most recent quarter |
+| `POST` | `/api/cauti/generate-report` | Generate CAUTI Word report |
+| `GET` | `/api/cauti/download-report?fileName=...` | Download generated .docx |
+| `DELETE` | `/api/cauti/history/{year}/{quarter}` | Delete a specific quarter |
 
 ---
 
@@ -756,10 +803,10 @@ pip install -r requirements.txt
 **For AI support, also install llama-cpp-python:**
 
 ```bash
-# GPU — use the wheel matching your CUDA version (check with: nvcc --version)
+# GPU (check your CUDA version with: nvcc --version)
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu122
 
-# CPU only (no CUDA required, but slower)
+# CPU only (slower)
 pip install llama-cpp-python --prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
@@ -772,25 +819,23 @@ npm install
 
 ### 4. Model File (for AI analysis)
 
-Download the model directly from Hugging Face:
-
 ```bash
 pip install huggingface_hub
-python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Qwen/Qwen2.5-7B-Instruct-GGUF', filename='qwen2.5-7b-instruct-q3_k_m.gguf', local_dir='C:/models')"
+python -c "
+from huggingface_hub import hf_hub_download
+hf_hub_download(
+    repo_id='Qwen/Qwen2.5-7B-Instruct-GGUF',
+    filename='qwen2.5-7b-instruct-q3_k_m.gguf',
+    local_dir='C:/models'
+)
+"
 ```
-
-Or manually download `qwen2.5-7b-instruct-q3_k_m.gguf` and place it at:
-```
-C:\models\qwen2.5-7b-instruct-q3_k_m.gguf
-```
-
-Any quantization variant works (`q3_k_m`, `q4_k_m`, `q5_k_m`, etc.). Higher quantization = better quality but more VRAM required.
 
 ---
 
 ## Running the System
 
-> **Windows:** Set `PYTHONUTF8=1` before starting the backend to ensure correct Arabic text rendering in Word reports.
+> **Windows:** Set `PYTHONUTF8=1` before starting the backend to ensure correct Arabic text encoding in Word reports.
 
 **Terminal 1 — Python Backend:**
 
@@ -815,10 +860,182 @@ npm run dev
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:5173 |
+| Frontend | http://localhost:3000 |
 | Python API | http://localhost:8000 |
 | API Docs (Swagger UI) | http://localhost:8000/docs |
 | Health Check | http://localhost:8000/health |
+
+---
+
+## Local Deployment (Production)
+
+For deploying on a local server so the entire hospital network can access it — without Docker.
+
+### Step 1 — Build the React Frontend
+
+```bash
+cd frontend
+npm run build
+```
+
+This creates `frontend/dist/` — a static folder of optimized HTML/JS/CSS files.
+
+### Step 2 — Serve the Frontend with a Static Web Server
+
+Install a lightweight static file server (choose one):
+
+**Option A — nginx (recommended for Windows/Linux servers):**
+
+1. Download nginx from https://nginx.org/en/download.html
+2. Create or edit `nginx.conf`:
+
+```nginx
+server {
+    listen 80;
+    server_name localhost;
+
+    # Serve the React build
+    root C:/path/to/healthcare_motality_system/frontend/dist;
+    index index.html;
+
+    # Handle React Router (all unknown paths → index.html)
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API calls to FastAPI backend
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+3. Start nginx: `nginx` (Windows) or `sudo systemctl start nginx` (Linux)
+
+**Option B — Python's built-in server (quick test only):**
+
+```bash
+cd frontend/dist
+python -m http.server 80
+```
+
+> Note: This does not support React Router. Use nginx for proper deployment.
+
+### Step 3 — Run the Python Backend as a Background Service
+
+**Windows — Run as a background process:**
+
+```bash
+cd python-service
+set PYTHONUTF8=1
+start /B venv\Scripts\python.exe main.py > logs\service.log 2>&1
+```
+
+**Windows — Run as a Windows Service (permanent, survives reboot):**
+
+Install [NSSM](https://nssm.cc/download) (Non-Sucking Service Manager), then:
+
+```bash
+nssm install HealthcareAPI "C:\path\to\python-service\venv\Scripts\python.exe" "C:\path\to\python-service\main.py"
+nssm set HealthcareAPI AppDirectory "C:\path\to\python-service"
+nssm set HealthcareAPI AppEnvironmentExtra "PYTHONUTF8=1"
+nssm start HealthcareAPI
+```
+
+**Linux — Run with systemd (permanent service):**
+
+Create `/etc/systemd/system/healthcare-api.service`:
+
+```ini
+[Unit]
+Description=Healthcare Quality Indicators API
+After=network.target
+
+[Service]
+User=your-user
+WorkingDirectory=/path/to/python-service
+Environment=PYTHONUTF8=1
+ExecStart=/path/to/python-service/venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable healthcare-api
+sudo systemctl start healthcare-api
+sudo systemctl status healthcare-api
+```
+
+### Step 4 — Update Frontend API URL for Network Access
+
+If other computers on the network will access this system, update the API URL in the frontend before building.
+
+Create `frontend/.env.production`:
+
+```env
+VITE_API_URL=http://YOUR-SERVER-IP:8000
+```
+
+Then update any hardcoded `http://localhost:8000` references in the frontend source to use `import.meta.env.VITE_API_URL`.
+
+Rebuild after changing:
+
+```bash
+cd frontend
+npm run build
+```
+
+### Step 5 — Allow Port Through Firewall
+
+**Windows Firewall:**
+
+```bash
+# Allow port 80 (frontend)
+netsh advfirewall firewall add rule name="Healthcare Frontend" dir=in action=allow protocol=TCP localport=80
+
+# Allow port 8000 (API — only if directly accessed)
+netsh advfirewall firewall add rule name="Healthcare API" dir=in action=allow protocol=TCP localport=8000
+```
+
+**Linux (ufw):**
+
+```bash
+sudo ufw allow 80
+sudo ufw allow 8000   # only if API is directly accessed, not proxied
+```
+
+### Step 6 — Verify
+
+| Check | URL |
+|-------|-----|
+| Frontend (from server) | http://localhost |
+| Frontend (from network) | http://YOUR-SERVER-IP |
+| API Health | http://YOUR-SERVER-IP:8000/health |
+| API Docs | http://YOUR-SERVER-IP:8000/docs |
+
+### Network Architecture (Deployed)
+
+```
+Hospital LAN
+    │
+    │  http://SERVER-IP   (port 80)
+    ▼
+nginx (static files + reverse proxy)
+    ├── / → frontend/dist/index.html  (React app)
+    └── /api/ → 127.0.0.1:8000       (FastAPI)
+                    │
+                    ▼
+              Python backend
+              (storage/data/*.json  on server disk)
+```
 
 ---
 
@@ -832,8 +1049,7 @@ npm run dev
 4. Upload the mortality Excel file (`.xlsx` or `.xls`)
 5. Click **Process** — the dashboard appears automatically
 6. Navigate to **Dashboard** to view charts and KPIs
-7. Navigate to **Historical Comparisons** to view quarter-over-quarter trends
-8. Navigate to **Reports** → click **Generate Word Report** → download the `.docx` file
+7. Navigate to **Reports** → click **Generate Word Report** → download the `.docx` file
 
 ### Medication Error
 
@@ -846,21 +1062,34 @@ npm run dev
 
 1. Navigate to **VAP → Upload**
 2. Select quarter and year
-3. Enter the ventilator days for each floor (ICU, CCU, CSU, Ped, ICN, ITU)
+3. Enter the ventilator days for each floor (ICU, CCU, CSU, Ped, ICN, ITU, Neonatal)
 4. Upload the infection control Excel file
-5. Click **Process** — data saved to history
+5. Click **Process** — data saved to history + raw cases saved to VAP_current.json
 6. View the **Dashboard** for floor gauges, heatmap, and trend chart
 7. Navigate to **Reports** → select the quarter → click **Generate Report** → download
 
 ### CLABSI Infection Control
 
 1. Navigate to **CLABSI → Upload**
-2. Select quarter and year, enter catheter days per department, upload Excel
+2. Select quarter and year, enter catheter days per floor, upload Excel
 3. View the **Dashboard** for rate gauges and germ distribution
+4. Navigate to **Reports** → click **Generate Report** → download
+
+### CAUTI Infection Control
+
+1. Navigate to **CAUTI → Upload**
+2. Select quarter and year, enter urinary catheter days per floor, upload Excel
+3. View the **Dashboard** for rate gauges and germ distribution
+4. Navigate to **Reports** → click **Generate Report** → download
 
 ---
 
 ## Version
 
-**2.1.0** — Four-module platform: Mortality Analysis · Medication Error Reporting · VAP Infection Control · CLABSI Infection Control
-AI analysis enabled for Mortality and VAP modules with automatic GPU/CPU fallback and memory management.
+**3.0.0** — Five-module platform: Mortality Analysis · Medication Error Reporting · VAP · CLABSI · CAUTI Infection Control
+
+- Shared Infection Control engine (`InfectionControlStatistics`, `InfectionControlDocxGenerator`, `InfectionControlChartGenerator`) serving CLABSI, CAUTI, and VAP
+- Raw case storage pattern (`*_current.json`) for all three IC modules — enables dynamic per-floor case tables in reports
+- `age_display` field (`53Y` / `3M` / `10D`) in VAP and IC processors
+- Arabic RTL Word reports with correct BiDi rendering (run-level `<w:rtl/>` for mixed Arabic/Latin text)
+- AI analysis with automatic GPU/CPU fallback and post-report memory unloading

@@ -48,6 +48,8 @@ class MedicationErrorStatistics:
             'cause_stage_matrix': self._calculate_cause_stage_matrix(df),
             'type_stage_matrix': self._calculate_type_stage_matrix(df),
             'departments_all': self._calculate_departments_all(df),
+            'heatmap_cycle_cause': self._calculate_heatmap(df, row_col='error_cycle', col_col='error_cause'),
+            'heatmap_cause_cycle': self._calculate_heatmap(df, row_col='error_cause', col_col='error_cycle'),
         }
         
         logger.success(f"✅ Statistics calculated - Error rate: {error_rate}%")
@@ -578,3 +580,52 @@ class MedicationErrorStatistics:
         units_sorted = sorted(counts.keys(), key=_sort_key)
 
         return {'units': units_sorted, 'counts': counts, 'total': total}
+
+    def _calculate_heatmap(self, df: pd.DataFrame, row_col: str, col_col: str) -> Dict:
+        """
+        Real cross-tabulation between two categorical columns.
+        Returns {row_label: {col_label: count}} for use in the frontend heatmap.
+        """
+        if row_col not in df.columns or col_col not in df.columns:
+            return {}
+
+        def normalize_cycle(val):
+            s = str(val).lower().strip()
+            if 'prescri'  in s: return 'Prescribing'
+            if 'transcri' in s: return 'Transcription'
+            if 'dispens'  in s: return 'Dispensing'
+            if 'admin'    in s: return 'Administration'
+            if 'monitor'  in s: return 'Monitoring'
+            if 'prepar'   in s: return 'Preparation'
+            return str(val).strip().title() if val else 'Unknown'
+
+        def normalize_cause(val):
+            return str(val).strip().title() if val and str(val).strip() else 'Unknown'
+
+        df_clean = df.copy()
+
+        if row_col == 'error_cycle':
+            df_clean['_row'] = df_clean[row_col].apply(normalize_cycle)
+        else:
+            df_clean['_row'] = df_clean[row_col].fillna('Unknown').apply(normalize_cause)
+
+        if col_col == 'error_cycle':
+            df_clean['_col'] = df_clean[col_col].apply(normalize_cycle)
+        else:
+            df_clean['_col'] = df_clean[col_col].fillna('Unknown').apply(normalize_cause)
+
+        if 'error_count' in df_clean.columns:
+            pivot = df_clean.pivot_table(
+                index='_row', columns='_col',
+                values='error_count', aggfunc='sum', fill_value=0
+            )
+        else:
+            pivot = df_clean.pivot_table(
+                index='_row', columns='_col',
+                aggfunc='size', fill_value=0
+            )
+
+        return {
+            row: {col: int(pivot.loc[row, col]) for col in pivot.columns}
+            for row in pivot.index
+        }

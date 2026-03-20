@@ -1,0 +1,337 @@
+[
+  {
+    "year": "2022",
+    "quarter": "الفصل الرابع",
+    "summary": {
+      "ICU": {
+        "cases": 5,
+        "urinary_catheter_days": 343,
+        "rate": 14.58
+      },
+      "CCU": {
+        "cases": 1,
+        "urinary_catheter_days": 222,
+        "rate": 4.5
+      },
+      "CSU": {
+        "cases": 0,
+        "urinary_catheter_days": 34,
+        "rate": 0.0
+      },
+      "Ped": {
+        "cases": 0,
+        "urinary_catheter_days": 343,
+        "rate": 0.0
+      },
+      "ICN": {
+        "cases": 0,
+        "urinary_catheter_days": 34,
+        "rate": 0.0
+      },
+      "3rd West": {
+        "cases": 0,
+        "urinary_catheter_days": 34,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "urinary_catheter_days": 220,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {
+      "ICU": {
+        "Pseudomonas putida": 1,
+        "Klebsiella pneumonia": 1,
+        "MRSA": 1,
+        "VRE": 1,
+        "E.coli ESBL": 1
+      },
+      "CCU": {
+        "Pseudomonas aeruginosa": 1
+      },
+      "CSU": {},
+      "Ped": {},
+      "ICN": {},
+      "3rd West": {},
+      "ITU": {}
+    }
+  },
+  {
+    "year": "2024",
+    "quarter": "الفصل الثالث",
+    "summary": {
+      "ICU": {
+        "cases": 1,
+        "urinary_catheter_days": 1426,
+        "rate": 0.7
+      },
+      "CCU": {
+        "cases": 1,
+        "urinary_catheter_days": 328,
+        "rate": 3.0
+      },
+      "CSU": {
+        "cases": 0,
+        "urinary_catheter_days": 842,
+        "rate": 0.0
+      },
+      "Ped": {
+        "cases": 0,
+        "urinary_catheter_days": 0,
+        "rate": 0.0
+      },
+      "ICN": {
+        "cases": 0,
+        "urinary_catheter_days": 0,
+        "rate": 0.0
+      },
+      "3rd West": {
+        "cases": 0,
+        "urinary_catheter_days": 173,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "urinary_catheter_days": 76,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {}
+  },
+  {
+    "year": "2024",
+    "quarter": "الفصل الرابع",
+    "summary": {
+      "ICU": {
+        "cases": 0,
+        "urinary_catheter_days": 806,
+        "rate": 0.0
+      },
+      "CCU": {
+        "cases": 0,
+        "urinary_catheter_days": 57,
+        "rate": 0.0
+      },
+      "CSU": {
+        "cases": 0,
+        "urinary_catheter_days": 167,
+        "rate": 0.0
+      },
+      "Ped": {
+        "cases": 0,
+        "urinary_catheter_days": 0,
+        "rate": 0.0
+      },
+      "ICN": {
+        "cases": 0,
+        "urinary_catheter_days": 7,
+        "rate": 0.0
+      },
+      "3rd West": {
+        "cases": 0,
+        "urinary_catheter_days": 277,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "urinary_catheter_days": 6,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {}
+  },
+  {
+    "year": "2025",
+    "quarter": "الفصل الاول",
+    "summary": {
+      "ICU": {
+        "cases": 1,
+        "urinary_catheter_days": 1486,
+        "rate": 0.67
+      },
+      "CCU": {
+        "cases": 2,
+        "urinary_catheter_days": 370,
+        "rate": 2.7
+      },
+      "CSU": {
+        "cases": 0,
+        "urinary_catheter_days": 896,
+        "rate": 0.0
+      },
+      "Ped": {
+        "cases": 0,
+        "urinary_catheter_days": 9,
+        "rate": 0.0
+      },
+      "ICN": {
+        "cases": 0,
+        "urinary_catheter_days": 44,
+        "rate": 0.0
+      },
+      "3rd West": {
+        "cases": 1,
+        "urinary_catheter_days": 268,
+        "rate": 3.73
+      },
+      "ITU": {
+        "cases": 0,
+        "urinary_catheter_days": 42,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {}
+  },
+  {
+    "year": "2025",
+    "quarter": "الفصل الثاني",
+    "summary": {
+      "ICU": {
+        "cases": 3,
+        "urinary_catheter_days": 1455,
+        "rate": 2.06
+      },
+      "CCU": {
+        "cases": 1,
+        "urinary_catheter_days": 270,
+        "rate": 3.7
+      },
+      "CSU": {
+        "cases": 1,
+        "urinary_catheter_days": 1045,
+        "rate": 0.95
+      },
+      "Ped": {
+        "cases": 0,
+        "urinary_catheter_days": 11,
+        "rate": 0.0
+      },
+      "ICN": {
+        "cases": 0,
+        "urinary_catheter_days": 39,
+        "rate": 0.0
+      },
+      "3rd West": {
+        "cases": 0,
+        "urinary_catheter_days": 168,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "urinary_catheter_days": 51,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {}
+  },
+  {
+    "year": "2025",
+    "quarter": "الفصل الثالث",
+    "summary": {
+      "ICU": {
+        "cases": 3,
+        "urinary_catheter_days": 1214,
+        "rate": 2.47
+      },
+      "CCU": {
+        "cases": 1,
+        "urinary_catheter_days": 224,
+        "rate": 4.4
+      },
+      "CSU": {
+        "cases": 0,
+        "urinary_catheter_days": 1081,
+        "rate": 0.0
+      },
+      "Ped": {
+        "cases": 0,
+        "urinary_catheter_days": 1081,
+        "rate": 0.0
+      },
+      "ICN": {
+        "cases": 0,
+        "urinary_catheter_days": 23,
+        "rate": 0.0
+      },
+      "3rd West": {
+        "cases": 0,
+        "urinary_catheter_days": 166,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "urinary_catheter_days": 61,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {
+      "ICU": {
+        "Acinetobacter baumanii": 1,
+        "Klebsiella CRE": 1,
+        "Serratia ESBL": 1
+      },
+      "CCU": {
+        "Pseudomonas (S)": 1
+      }
+    }
+  },
+  {
+    "year": "2025",
+    "quarter": "الفصل الرابع",
+    "summary": {
+      "ICU": {
+        "cases": 5,
+        "urinary_catheter_days": 766,
+        "rate": 6.53
+      },
+      "CCU": {
+        "cases": 1,
+        "urinary_catheter_days": 667,
+        "rate": 1.5
+      },
+      "CSU": {
+        "cases": 0,
+        "urinary_catheter_days": 233,
+        "rate": 0.0
+      },
+      "Ped": {
+        "cases": 0,
+        "urinary_catheter_days": 12,
+        "rate": 0.0
+      },
+      "ICN": {
+        "cases": 0,
+        "urinary_catheter_days": 32,
+        "rate": 0.0
+      },
+      "3rd West": {
+        "cases": 0,
+        "urinary_catheter_days": 23,
+        "rate": 0.0
+      },
+      "ITU": {
+        "cases": 0,
+        "urinary_catheter_days": 323,
+        "rate": 0.0
+      }
+    },
+    "germs_distribution": {
+      "ICU": {
+        "Pseudomonas putida": 1,
+        "Klebsiella pneumonia": 1,
+        "MRSA": 1,
+        "VRE": 1,
+        "E.coli ESBL": 1
+      },
+      "CCU": {
+        "Pseudomonas aeruginosa": 1
+      },
+      "CSU": {},
+      "Ped": {},
+      "ICN": {},
+      "3rd West": {},
+      "ITU": {}
+    }
+  }
+]

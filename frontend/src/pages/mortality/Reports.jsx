@@ -1,102 +1,109 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import styles from '../styles/Reports.module.css';
+import styles from '../../styles/Reports.module.css';
+
+const API_URL = 'http://localhost:8000/api';
+
+const QUARTER_ORDER = {
+  'الفصل الأول': 1, 'الفصل الاول': 1,
+  'الفصل الثاني': 2, 'الفصل الثالث': 3, 'الفصل الرابع': 4,
+};
+
 
 function Reports({ data }) {
   const { t } = useTranslation();
-  const [reportType, setReportType] = useState('summary');
-  const [generating, setGenerating] = useState(false);
-  const [reportUrl, setReportUrl] = useState(null);
+  const [reportType, setReportType]   = useState('summary');
+  const [generating, setGenerating]   = useState(false);
+  const [reportUrl, setReportUrl]     = useState(null);
+  const [history, setHistory]         = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Helper function to translate gender
-  const translateGender = (gender) => {
-    if (gender === 'ذكر' || gender === 'male') {
-      return t('male');
-    } else if (gender === 'انثى' || gender === 'female') {
-      return t('female');
-    }
-    return gender;
-  };
+  useEffect(() => {
+    axios.get(`${API_URL}/history`)
+      .then(res => {
+        const entries = Array.isArray(res.data) ? res.data : [];
+        // Sort newest first for the dropdown
+        const sorted = [...entries].sort((a, b) => {
+          const ya = parseInt(a.year) || 0, yb = parseInt(b.year) || 0;
+          if (ya !== yb) return yb - ya;
+          return (QUARTER_ORDER[b.quarter] || 0) - (QUARTER_ORDER[a.quarter] || 0);
+        });
+        setHistory(sorted);
+        // Default to the last uploaded quarter (from data prop), not simply index 0
+        const currentIdx = data?.quarter
+          ? sorted.findIndex(e => e.quarter === data.quarter && String(e.year) === String(data.year))
+          : -1;
+        setSelectedIndex(currentIdx >= 0 ? currentIdx : 0);
+      })
+      .catch(err => console.error('Failed to load mortality history:', err))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const generateSummaryReport = () => {
-    if (!data) return null;
+  const entry = history[selectedIndex] || null;
 
-    const records     = data.records;
-    const totalDeaths = data.statistics?.total_deaths ?? records.length;
-    const kpiDeaths   = data.statistics?.kpi_deaths   ?? records.filter(r =>
-      String(r.include_kpi || r.kpi || '').toUpperCase() === 'YES'
-    ).length;
-
-    const base        = kpiDeaths > 0 ? kpiDeaths : totalDeaths;
-    const avgAge      = (records.reduce((sum, r) => sum + (r.age || 0), 0) / records.length).toFixed(1);
-    const maleCount   = records.filter(r => r.gender === 'ذكر' || r.gender === 'male').length;
-    const femaleCount = records.filter(r => r.gender === 'انثى' || r.gender === 'female').length;
-
-    return {
-      totalDeaths,
-      kpiDeaths,
-      avgAge,
-      maleCount,
-      femaleCount,
-      malePercentage:   ((maleCount   / base) * 100).toFixed(1),
-      femalePercentage: ((femaleCount / base) * 100).toFixed(1)
-    };
-  };
+  // Detailed table is only available when the selected quarter matches the current upload session
+  const hasRecords = data && Array.isArray(data.records) && data.records.length > 0
+    && entry && data.quarter === entry.quarter && String(data.year) === String(entry.year);
 
   const handleGenerateReport = async () => {
-    if (!data) {
-      alert('Please upload data first');
-      return;
-    }
-
+    if (!entry) return;
     setGenerating(true);
-
+    setReportUrl(null);
     try {
-      const response = await axios.post('http://localhost:8000/api/generate-report', {
-        data: data,
-        quarter: data.quarter || 'الفصل الثالث',
-        year: data.year || '2025',
-        language: 'ar'
+      const response = await axios.post(`${API_URL}/generate-report`, {
+        quarter: entry.quarter,
+        year: entry.year,
+        language: 'ar',
       });
-
       if (response.data.success) {
-        const downloadUrl = `http://localhost:8000/api/download-report?fileName=${encodeURIComponent(response.data.fileName)}`;
-        setReportUrl(downloadUrl);
-        alert('Report generated successfully!');
+        const url = `${API_URL}/download-report?fileName=${encodeURIComponent(response.data.fileName)}`;
+        setReportUrl(url);
       }
-    } catch (error) {
-      console.error('Error generating report:', error);
-      alert('Error generating report');
+    } catch (err) {
+      console.error('Error generating report:', err);
+      alert(t('errorGeneratingReport') || 'Error generating report');
     } finally {
       setGenerating(false);
     }
   };
 
-  if (!data) {
+  // ── Loading ──────────────────────────────────────────────────────────────────
+  if (loading) {
     return (
       <div className={styles.emptyState}>
-        <div className={styles.emptyStateBackground}></div>
+        <div className={styles.emptyStateBackground} />
         <div className={styles.emptyStateContent}>
           <div className={styles.emptyStateIconWrapper}>
-            <span className={styles.emptyStateIcon}>📄</span>
+            <span className={styles.emptyStateIcon}>⏳</span>
           </div>
-          <h2 className={styles.emptyStateTitle}>
-            {t('noReportsAvailable')}
-          </h2>
-          <p className={styles.emptyStateText}>
-            {t('uploadDataToGenerateReports')}
-          </p>
+          <h2 className={styles.emptyStateTitle}>{t('loading')}</h2>
         </div>
       </div>
     );
   }
 
-  const summaryReport = generateSummaryReport();
+  // ── No data ──────────────────────────────────────────────────────────────────
+  if (!entry) {
+    return (
+      <div className={styles.emptyState}>
+        <div className={styles.emptyStateBackground} />
+        <div className={styles.emptyStateContent}>
+          <div className={styles.emptyStateIconWrapper}>
+            <span className={styles.emptyStateIcon}>📄</span>
+          </div>
+          <h2 className={styles.emptyStateTitle}>{t('noReportsAvailable')}</h2>
+          <p className={styles.emptyStateText}>{t('uploadDataToGenerateReports')}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.reportsContainer}>
-      {/* Header with Gradient and Download Button */}
+
+      {/* Header */}
       <div className={styles.reportsHeader}>
         <div className={styles.headerContent}>
           <div className={styles.headerLeft}>
@@ -104,12 +111,8 @@ function Reports({ data }) {
               <span className={styles.headerIcon}>📊</span>
             </div>
             <div>
-              <h1 className={styles.headerTitle}>
-                {t('reports')}
-              </h1>
-              <p className={styles.headerSubtitle}>
-                {t('generateAndDownloadReports')}
-              </p>
+              <h1 className={styles.headerTitle}>{t('reports')}</h1>
+              <p className={styles.headerSubtitle}>{t('generateAndDownloadReports')}</p>
             </div>
           </div>
           <button
@@ -119,23 +122,20 @@ function Reports({ data }) {
             style={{ opacity: generating ? 0.7 : 1 }}
           >
             <span className={styles.downloadButtonIcon}>📄</span>
-            {generating ? t('generating') || 'Generating...' : t('generateWordReport') || 'Generate Word Report'}
+            {generating
+              ? (t('generating') || 'Generating...')
+              : (t('generateWordReport') || 'Generate Word Report')}
           </button>
         </div>
       </div>
 
-      {/* Download Link for Word Report */}
+      {/* Download banner */}
       {reportUrl && (
         <div style={{
-          backgroundColor: '#10b981',
-          color: 'white',
-          padding: '1rem 1.5rem',
-          borderRadius: '12px',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+          backgroundColor: '#10b981', color: 'white',
+          padding: '1rem 1.5rem', borderRadius: '12px', marginBottom: '1.5rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <span style={{ fontSize: '1.5rem' }}>✅</span>
@@ -147,15 +147,10 @@ function Reports({ data }) {
             href={reportUrl}
             download
             style={{
-              backgroundColor: 'white',
-              color: '#10b981',
-              padding: '0.5rem 1.5rem',
-              borderRadius: '8px',
-              fontWeight: 'bold',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
+              backgroundColor: 'white', color: '#10b981',
+              padding: '0.5rem 1.5rem', borderRadius: '8px',
+              fontWeight: 'bold', textDecoration: 'none',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
             }}
           >
             <span>⬇️</span>
@@ -164,7 +159,7 @@ function Reports({ data }) {
         </div>
       )}
 
-      {/* Report Type Selector with Beautiful Design */}
+      {/* Report type tabs */}
       <div className={styles.typeSelector}>
         <div className={styles.typeSelectorButtons}>
           <button
@@ -176,142 +171,145 @@ function Reports({ data }) {
             <span className={styles.typeButtonIcon}>📄</span>
             {t('summaryReport')}
           </button>
-          <button
-            onClick={() => setReportType('detailed')}
-            className={`${styles.typeButton} ${styles.typeButtonDetailed} ${
-              reportType === 'detailed' ? styles.typeButtonActive : styles.typeButtonInactive
-            }`}
-          >
-            <span className={styles.typeButtonIcon}>📋</span>
-            {t('detailedReport')}
-          </button>
+          {hasRecords && (
+            <button
+              onClick={() => setReportType('detailed')}
+              className={`${styles.typeButton} ${styles.typeButtonDetailed} ${
+                reportType === 'detailed' ? styles.typeButtonActive : styles.typeButtonInactive
+              }`}
+            >
+              <span className={styles.typeButtonIcon}>📋</span>
+              {t('detailedReport')}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Report Content */}
+      {/* Summary */}
       {reportType === 'summary' && (
         <div className={styles.reportCard}>
           <div className={styles.reportCardHeader}>
             <div className={styles.reportCardIcon}>📊</div>
-            <h2 className={styles.reportCardTitle}>
-              {t('summaryReport')}
-            </h2>
+            <h2 className={styles.reportCardTitle}>{t('summaryReport')}</h2>
           </div>
 
           <div className={styles.statsGrid}>
+            {/* Deaths */}
             <div className={styles.statCard}>
               <div className={styles.statCardContent}>
                 <div className={styles.statCardHeader}>
                   <div className={styles.statCardIconWrapper}>
                     <span className={styles.statCardIcon}>💀</span>
                   </div>
-                  <h3 className={styles.statCardLabel}>
-                    {t('totalDeaths')}
-                  </h3>
+                  <h3 className={styles.statCardLabel}>{t('totalDeaths')}</h3>
                 </div>
-                <div className={styles.statCardValue}>
-                  {summaryReport.totalDeaths}
-                </div>
-                <div style={{ fontSize: '13px', color: '#dc2626', fontWeight: 600, marginTop: '4px' }}>
-                  KPI Deaths (rate): {summaryReport.kpiDeaths}
-                </div>
+                <div className={styles.statCardValue}>{entry.deaths ?? 0}</div>
                 <div className={styles.statCardProgress}>
-                  <div className={styles.statCardProgressBar} style={{ width: '100%' }}></div>
+                  <div className={styles.statCardProgressBar} style={{ width: '100%' }} />
                 </div>
               </div>
             </div>
 
+            {/* Mortality rate */}
             <div className={styles.statCard}>
               <div className={styles.statCardContent}>
                 <div className={styles.statCardHeader}>
                   <div className={styles.statCardIconWrapper}>
-                    <span className={styles.statCardIcon}>👴</span>
+                    <span className={styles.statCardIcon}>📉</span>
                   </div>
                   <h3 className={styles.statCardLabel}>
-                    {t('averageAge')}
+                    {t('mortalityRate') || 'Mortality Rate'}
                   </h3>
                 </div>
                 <div className={styles.statCardValue}>
-                  {summaryReport.avgAge}
-                  <span className={styles.statCardSubValue}>{t('years')}</span>
+                  {entry.rate ?? 0}
+                  <span className={styles.statCardSubValue}>%</span>
                 </div>
                 <div className={styles.statCardProgress}>
-                  <div className={styles.statCardProgressBar} style={{ width: '75%' }}></div>
+                  <div className={styles.statCardProgressBar}
+                    style={{ width: `${Math.min((entry.rate ?? 0) * 30, 100)}%` }} />
                 </div>
               </div>
             </div>
 
+            {/* Total patients */}
             <div className={styles.statCard}>
               <div className={styles.statCardContent}>
                 <div className={styles.statCardHeader}>
                   <div className={styles.statCardIconWrapper}>
-                    <span className={styles.statCardIcon}>♂️</span>
+                    <span className={styles.statCardIcon}>🏥</span>
                   </div>
                   <h3 className={styles.statCardLabel}>
-                    {t('maleDeaths')}
+                    {t('totalPatients') || 'Total Patients'}
                   </h3>
                 </div>
                 <div className={styles.statCardValue}>
-                  {summaryReport.maleCount}
-                  <span className={styles.statCardSubValue}>
-                    ({summaryReport.malePercentage}%)
-                  </span>
+                  {(entry.total_patients ?? 0).toLocaleString()}
                 </div>
                 <div className={styles.statCardProgress}>
-                  <div className={styles.statCardProgressBar} style={{ width: `${summaryReport.malePercentage}%` }}></div>
+                  <div className={styles.statCardProgressBar} style={{ width: '75%' }} />
                 </div>
               </div>
             </div>
 
+            {/* Quarter/year */}
             <div className={styles.statCard}>
               <div className={styles.statCardContent}>
                 <div className={styles.statCardHeader}>
                   <div className={styles.statCardIconWrapper}>
-                    <span className={styles.statCardIcon}>♀️</span>
+                    <span className={styles.statCardIcon}>📅</span>
                   </div>
                   <h3 className={styles.statCardLabel}>
-                    {t('femaleDeaths')}
+                    {t('quarterYearLabel') || 'Quarter / Year'}
                   </h3>
                 </div>
-                <div className={styles.statCardValue}>
-                  {summaryReport.femaleCount}
-                  <span className={styles.statCardSubValue}>
-                    ({summaryReport.femalePercentage}%)
-                  </span>
+                <div className={styles.statCardValue} style={{ fontSize: '1.05rem' }}>
+                  {entry.quarter}
+                  <span className={styles.statCardSubValue}>{entry.year}</span>
                 </div>
                 <div className={styles.statCardProgress}>
-                  <div className={styles.statCardProgressBar} style={{ width: `${summaryReport.femalePercentage}%` }}></div>
+                  <div className={styles.statCardProgressBar} style={{ width: '60%' }} />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className={styles.summarySection}>
-            <div className={styles.summarySectionHeader}>
-              <div className={styles.summarySectionIcon}>
-                <span className={styles.summarySectionIconText}>📊</span>
+          {/* Departments breakdown */}
+          {Object.keys(entry.departments || {}).length > 0 && (
+            <div className={styles.summarySection} style={{ marginTop: '1.5rem' }}>
+              <div className={styles.summarySectionHeader}>
+                <div className={styles.summarySectionIcon}>
+                  <span className={styles.summarySectionIconText}>🏥</span>
+                </div>
+                <h3 className={styles.summarySectionTitle}>
+                  {t('departments') || 'Departments'}
+                </h3>
               </div>
-              <h3 className={styles.summarySectionTitle}>
-                {t('reportSummary')}
-              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
+                {Object.entries(entry.departments)
+                  .filter(([, count]) => count > 0)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([name, count]) => (
+                    <span key={name} style={{
+                      background: '#eff6ff', border: '1px solid #bfdbfe',
+                      borderRadius: '8px', padding: '0.25rem 0.75rem',
+                      fontSize: '0.875rem', color: '#1e40af', fontWeight: 500,
+                    }}>
+                      {name}: <strong>{count}</strong>
+                    </span>
+                  ))}
+              </div>
             </div>
-            <p className={styles.summarySectionText}>
-              {t('reportDescription', {
-                total: summaryReport.totalDeaths,
-                avgAge: summaryReport.avgAge
-              })}
-            </p>
-          </div>
+          )}
         </div>
       )}
 
-      {reportType === 'detailed' && (
+      {/* Detailed report — only when current session records are available */}
+      {reportType === 'detailed' && hasRecords && (
         <div className={styles.reportCard}>
           <div className={styles.reportCardHeader}>
             <div className={styles.reportCardIcon}>📋</div>
-            <h2 className={styles.reportCardTitle}>
-              {t('detailedReport')}
-            </h2>
+            <h2 className={styles.reportCardTitle}>{t('detailedReport')}</h2>
           </div>
 
           <div className={styles.tableWrapper}>
@@ -356,9 +354,7 @@ function Reports({ data }) {
                     <tr key={index} className={styles.tableBodyRow}>
                       <td className={styles.tableBodyCell}>
                         <div className={styles.tableCellNumber}>
-                          <div className={styles.tableCellNumberBadge}>
-                            {index + 1}
-                          </div>
+                          <div className={styles.tableCellNumberBadge}>{index + 1}</div>
                         </div>
                       </td>
                       <td className={styles.tableBodyCell}>
@@ -371,18 +367,17 @@ function Reports({ data }) {
                             : styles.tableCellGenderFemale
                         }`}>
                           {record.gender === 'ذكر' || record.gender === 'male' ? '♂️ ' : '♀️ '}
-                          {translateGender(record.gender)}
+                          {record.gender}
                         </span>
                       </td>
                       <td className={styles.tableBodyCell}>
                         <span className={styles.tableCellLOS}>
-                          {record.los} <span className={styles.tableCellLOSUnit}>{t('days')}</span>
+                          {record.los}
+                          <span className={styles.tableCellLOSUnit}>{t('days')}</span>
                         </span>
                       </td>
                       <td className={styles.tableBodyCell}>
-                        <span className={styles.tableCellMonthBadge}>
-                          {record.month}
-                        </span>
+                        <span className={styles.tableCellMonthBadge}>{record.month}</span>
                       </td>
                     </tr>
                   ))}

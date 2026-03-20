@@ -1,5 +1,6 @@
 """
-CLABSI API Routes
+CAUTI API Routes
+Prefix: /api/cauti
 """
 
 import json
@@ -10,22 +11,23 @@ from uuid import uuid4
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
-from app.infection_control.clabsi.processor import process_clabsi_excel
-from app.infection_control.clabsi.history import (
+from app.infection_control.cauti.processor import process_cauti_excel
+from app.infection_control.cauti.history import (
     load_history,
     load_current,
     add_or_update_quarter,
     get_current_quarter,
+    save_history,
 )
-from app.infection_control.clabsi.clabsi_targets import CLABSI_TARGETS
+from app.infection_control.cauti.cauti_targets import CAUTI_TARGETS
 from app.infection_control.ic_statistics import InfectionControlStatistics
 
-router = APIRouter(prefix="/api/clabsi", tags=["CLABSI"])
+router = APIRouter(prefix="/api/cauti", tags=["CAUTI"])
 
 TEMP_DIR = Path("storage/temp")
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
-_stats = InfectionControlStatistics("clabsi")
+_stats = InfectionControlStatistics("cauti")
 
 
 @router.post("/process-data")
@@ -33,11 +35,10 @@ async def process_data(
     file: UploadFile = File(...),
     year: int = Form(...),
     quarter: int = Form(...),
-    denominators: str = Form(...),   # JSON string: {"ICU": 200, "CCU": 100, ...}
+    denominators: str = Form(...),  # JSON: {"ICU": 200, "CCU": 150, ...}
 ):
-    """Process uploaded CLABSI Excel file and save to history."""
-    tmp_path = TEMP_DIR / f"clabsi_{uuid4()}.xlsx"
-
+    """Process uploaded CAUTI Excel sheet and save to history."""
+    tmp_path = TEMP_DIR / f"cauti_{uuid4()}.xlsx"
     try:
         contents = await file.read()
         tmp_path.write_bytes(contents)
@@ -45,7 +46,7 @@ async def process_data(
         denominators_dict: dict = json.loads(denominators)
         denominators_dict = {k: int(v) for k, v in denominators_dict.items()}
 
-        result = process_clabsi_excel(str(tmp_path), int(year), int(quarter), denominators_dict)
+        result = process_cauti_excel(str(tmp_path), int(year), int(quarter), denominators_dict)
         cases  = result["cases"]
 
         all_stats = _stats.calculate_all_statistics(
@@ -65,15 +66,13 @@ async def process_data(
 
         add_or_update_quarter(record)
 
-        return JSONResponse(
-            content={
-                "status":      "success",
-                "message":     "CLABSI data processed and saved successfully",
-                "year":        int(year),
-                "quarter":     int(quarter),
-                "total_cases": all_stats["total_cases"],
-            }
-        )
+        return JSONResponse(content={
+            "status":      "success",
+            "message":     "CAUTI data processed and saved successfully",
+            "year":        int(year),
+            "quarter":     int(quarter),
+            "total_cases": all_stats["total_cases"],
+        })
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid denominators JSON format")
@@ -86,16 +85,14 @@ async def process_data(
 
 @router.get("/history")
 def get_history():
-    """Return all quarters sorted chronologically."""
     return load_history()
 
 
 @router.get("/history/latest")
 def get_latest():
-    """Return the most recent quarter."""
     latest = get_current_quarter()
     if latest is None:
-        raise HTTPException(status_code=404, detail="No CLABSI data available")
+        raise HTTPException(status_code=404, detail="No CAUTI data available")
     return latest
 
 
@@ -107,21 +104,20 @@ def get_current():
 
 @router.get("/targets")
 def get_targets():
-    """Return CLABSI targets per 1,000 catheter days per department."""
-    return CLABSI_TARGETS
+    return CAUTI_TARGETS
 
 
 @router.post("/generate-report")
 def generate_report():
-    """Generate a DOCX CLABSI report from history + current quarter data."""
+    """Generate a DOCX CAUTI report from history + current quarter data."""
     history = load_history()
     if not history:
-        raise HTTPException(status_code=404, detail="No CLABSI data available")
+        raise HTTPException(status_code=404, detail="No CAUTI data available")
     try:
-        from app.infection_control.clabsi.docx_generator import CLABSIDocxGenerator
+        from app.infection_control.cauti.docx_generator import CAUTIDocxGenerator
         current = load_current()
-        gen     = CLABSIDocxGenerator()
-        result  = gen.generate_report(history=history, targets=CLABSI_TARGETS, current=current)
+        gen     = CAUTIDocxGenerator()
+        result  = gen.generate_report(history=history, targets=CAUTI_TARGETS, current=current)
         return {"success": True, "filePath": result["filePath"], "fileName": result["fileName"]}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
@@ -129,7 +125,7 @@ def generate_report():
 
 @router.get("/download-report")
 def download_report(fileName: str):
-    """Download a generated CLABSI DOCX report by filename."""
+    """Download a generated CAUTI DOCX report by filename."""
     safe_name   = os.path.basename(fileName)
     reports_dir = os.path.normpath(
         os.path.join(os.path.dirname(__file__), '..', '..', 'storage', 'reports')
@@ -146,15 +142,9 @@ def download_report(fileName: str):
 
 @router.delete("/history/{year}/{quarter}")
 def delete_quarter(year: int, quarter: int):
-    """Delete a specific quarter from history."""
     history = load_history()
-    filtered = [
-        r for r in history
-        if not (r["year"] == year and r["quarter"] == quarter)
-    ]
+    filtered = [r for r in history if not (r["year"] == year and r["quarter"] == quarter)]
     if len(filtered) == len(history):
         raise HTTPException(status_code=404, detail="Quarter not found")
-
-    from app.infection_control.clabsi.history import save_history
     save_history(filtered)
     return {"status": "deleted", "year": year, "quarter": quarter}

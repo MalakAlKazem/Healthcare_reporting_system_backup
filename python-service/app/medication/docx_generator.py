@@ -13,15 +13,16 @@ Pages:
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_ALIGN_VERTICAL
+from docx.enum.table import WD_ALIGN_VERTICAL, WD_ROW_HEIGHT_RULE
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 import os
+import re
+from datetime import datetime
 
 from loguru import logger
-import re
-from app.medication_error.chart_generator import MedicationErrorCharts
-from app.medication_error.medication_error_ai_service import medication_error_ai_service
+from app.medication.chart_generator import MedicationErrorCharts
+from app.medication.ai_service import medication_error_ai_service
 
 # =============================================================================
 # FONTS
@@ -59,7 +60,7 @@ class MedicationErrorDocxGenerator:
     """Generates a medication error analysis DOCX report."""
 
     def __init__(self):
-        self.logo_path = 'app/assets/LOGO.png'
+        self.logo_path = 'assets/LOGO.png'
 
     # =========================================================================
     # PUBLIC API
@@ -110,7 +111,7 @@ class MedicationErrorDocxGenerator:
         self._build_page3(doc, charts, stats=stats)
         self._build_page4(doc, charts, stats, history=history or [])
         self._build_page5(doc, stats)
-        self._build_last_page(doc)
+        self._build_last_page(doc, stats)
 
         # Save
         reports_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'storage', 'reports')
@@ -182,7 +183,7 @@ class MedicationErrorDocxGenerator:
 
         # Form number
         para = cells[2].paragraphs[0]
-        run = para.add_run('QS-36F-103(4)\nApd 15/12/2019')
+        run = para.add_run(f'QS-36F-103(4)\n{datetime.now().strftime("%d/%m/%Y")}')
         run.font.name = FONT_EN
         run.font.size = Pt(7)
         run.bold = True
@@ -237,7 +238,7 @@ class MedicationErrorDocxGenerator:
         self._add_spacer(doc, space_before=6)
         self._add_metadata_table(doc, quarter, year)
         doc.add_paragraph()
-        self._add_results_table(doc, stats, history)
+        self._add_results_table(doc, stats, history, quarter, year)
         self._add_spacer(doc)
         self._add_analysis_box(doc, quarter, year, stats, charts, history=history)
 
@@ -252,86 +253,93 @@ class MedicationErrorDocxGenerator:
         """
         table = doc.add_table(rows=3, cols=4)
         table.autofit = False
-        self._set_table_cell_margins(table, top=0, bottom=0, left=60, right=60)
+        self._set_table_cell_margins(table, top=0, bottom=0, left=30, right=30)
 
         col_w = [Inches(1.93), Inches(1.06), Inches(2.71), Inches(1.17)]
         for i, width in enumerate(col_w):
             for row in table.rows:
                 row.cells[i].width = width
 
-        # --- Row 0 ---
-        self._style_cell_text(table.cell(0, 3), "موضوع التحليل", FONT, 10, bold=True, rtl=True)
-        self._set_cell_shading(table.cell(0, 3), SHADE_HEADER)
-        self._style_cell_text(table.cell(0, 2), "Medication Error", FONT_EN, 11, bold=True)
-        self._style_cell_text(table.cell(0, 1), "الإدارة", FONT, 10, bold=True, rtl=True)
-        self._set_cell_shading(table.cell(0, 1), SHADE_HEADER)
-        self._style_cell_text(table.cell(0, 0), "التمريض", FONT, 11, rtl=True)
+        # Row heights — generous minimum so content is never cut
+        for ri in range(3):
+            table.rows[ri].height      = Inches(0.35)
+            table.rows[ri].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
 
-        # --- Row 1 ---
+        # Row 0
+        self._style_cell_text(table.cell(0, 3), "موضوع التحليل", FONT, 9, bold=True, rtl=True)
+        self._set_cell_shading(table.cell(0, 3), SHADE_HEADER)
+        self._style_cell_text(table.cell(0, 2), "Medication Error", FONT_EN, 8, bold=True)
+        self._style_cell_text(table.cell(0, 1), "الإدارة", FONT, 9, bold=True, rtl=True)
+        self._set_cell_shading(table.cell(0, 1), SHADE_HEADER)
+        self._style_cell_text(table.cell(0, 0), "التمريض", FONT, 10, rtl=True)
+
+        # Row 1
         self._style_cell_text(table.cell(1, 3), "", FONT, 9, rtl=True)
         self._set_cell_shading(table.cell(1, 3), SHADE_HEADER)
-        self._style_cell_text(table.cell(1, 2), "", FONT_EN, 10)
-        self._style_cell_text(table.cell(1, 1), "الوحدة الإدارية", FONT, 10, bold=True, rtl=True)
+        self._style_cell_text(table.cell(1, 2), "", FONT_EN, 9)
+        self._style_cell_text(table.cell(1, 1), "الوحدة الإدارية", FONT, 9, bold=True, rtl=True)
         self._set_cell_shading(table.cell(1, 1), SHADE_HEADER)
-        self._style_cell_text(table.cell(1, 0), "....................", FONT, 10, rtl=True)
+        self._style_cell_text(table.cell(1, 0), "الجودة والسلامة", FONT, 9, rtl=True)
 
-        # --- Row 2 ---
-        self._style_cell_text(table.cell(2, 3),
-            "مصادر\nالبيانات\n)تحديد اسماء\nالنماذج(", FONT, 9, bold=True, rtl=True)
+        # Row 2
+        self._style_cell_text(table.cell(2, 3), "مصادر البيانات) تحديد اسماء النماذج(", FONT, 9, bold=True, rtl=True)
         self._set_cell_shading(table.cell(2, 3), SHADE_HEADER)
-
         sources = (
             "- نموذج حادث مريض\n"
             "- MEDICATION ERROR INVESTIGATION FORM\n"
             "- تدقيق المشرف التمريضي"
         )
         self._style_cell_text(table.cell(2, 2), sources, FONT, 9, rtl=True)
-
-        self._style_cell_text(table.cell(2, 1),
-            "الشهر / العام\nأو\nالفصل / العام", FONT, 9, bold=True, rtl=True)
+        self._style_cell_text(table.cell(2, 1), "الشهر / الفصل / العام", FONT, 9, bold=True, rtl=True)
         self._set_cell_shading(table.cell(2, 1), SHADE_HEADER)
-        self._style_cell_text(table.cell(2, 0), f"{quarter}/{year}", FONT, 11, rtl=True)
+        self._style_cell_text(table.cell(2, 0), f"{quarter}  {year} /", FONT, 10, rtl=True)
 
-        # Vertical merges (cols 2 & 3: rows 0+1)
+        # Vertical merges for cols 2 and 3 rows 0-1
         table.cell(0, 2).merge(table.cell(1, 2))
         table.cell(0, 3).merge(table.cell(1, 3))
         self._set_cell_shading(table.cell(0, 3), SHADE_HEADER)
 
-        # Borders
-        row0_tcs = table.rows[0]._tr.findall(qn('w:tc'))
+        # Borders — all sides thick
+        for r in range(3):
+            for c in range(4):
+                self._set_cell_border(table.cell(r, c),
+                                      top=BORDER_THICK, bottom=BORDER_THICK,
+                                      left=BORDER_THICK, right=BORDER_THICK)
+
+        # Cols 2-3 in row 1 are vMerge continuation cells — set their borders directly
         row1_tcs = table.rows[1]._tr.findall(qn('w:tc'))
+        for tc in row1_tcs[2:4]:
+            self._set_tc_border(tc,
+                                top=BORDER_THICK, bottom=BORDER_THICK,
+                                left=BORDER_THICK, right=BORDER_THICK)
 
-        self._set_cell_border(table.cell(0, 0), top=BORDER_THICK, bottom=BORDER_THIN,  left=BORDER_THICK,  right=BORDER_THIN)
-        self._set_cell_border(table.cell(1, 0), top=BORDER_THIN,  bottom=BORDER_THIN,  left=BORDER_THICK,  right=BORDER_THIN)
-        self._set_cell_border(table.cell(2, 0), top=BORDER_THIN,  bottom=BORDER_THICK, left=BORDER_THICK,  right=BORDER_THIN)
-
-        self._set_cell_border(table.cell(0, 1), top=BORDER_THICK, bottom=BORDER_THIN,  left=BORDER_THIN,   right=BORDER_THICK)
-        self._set_cell_border(table.cell(1, 1), top=BORDER_THIN,  bottom=BORDER_THIN,  left=BORDER_THIN,   right=BORDER_THICK)
-        self._set_cell_border(table.cell(2, 1), top=BORDER_THIN,  bottom=BORDER_THICK, left=BORDER_THIN,   right=BORDER_THICK)
-
-        self._set_tc_border(row0_tcs[2], top=BORDER_THICK, bottom=BORDER_THIN,  left=BORDER_THICK, right=BORDER_THIN)
-        self._set_tc_border(row1_tcs[2], top=BORDER_THIN,  bottom=BORDER_THIN,  left=BORDER_THICK, right=BORDER_THIN)
-        self._set_cell_border(table.cell(2, 2), top=BORDER_THIN, bottom=BORDER_THICK, left=BORDER_THICK, right=BORDER_THIN)
-
-        self._set_tc_border(row0_tcs[3], top=BORDER_THICK, bottom=BORDER_THIN,  left=BORDER_THIN, right=BORDER_THICK)
-        self._set_tc_border(row1_tcs[3], top=BORDER_THIN,  bottom=BORDER_THIN,  left=BORDER_THIN, right=BORDER_THICK)
-        self._set_cell_border(table.cell(2, 3), top=BORDER_THIN, bottom=BORDER_THICK, left=BORDER_THIN, right=BORDER_THICK)
-
-    def _add_results_table(self, doc, stats, history):
+    def _add_results_table(self, doc, stats, history, quarter='', year=''):
         """
         4-row × 7-col results table.
         Cols 0-5 → last 6 history quarters (oldest→newest left→right)
         Col 6    → النتيجة الحالية (current error rate)
         """
-        COLS = 7
+        COLS   = 7
+        N_HIST = COLS - 1
+
         table = doc.add_table(rows=4, cols=COLS)
         table.autofit = False
-        self._set_table_cell_margins(table, top=40, bottom=40, left=60, right=60)
+        self._set_table_cell_margins(table, top=10, bottom=10, left=30, right=30)
 
         w_col = Inches(6.87 / COLS)
         for i in range(COLS):
             for row in table.rows:
                 row.cells[i].width = w_col
+
+        # Compact row heights
+        table.rows[0].height      = Inches(0.20)
+        table.rows[0].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+        table.rows[1].height      = Inches(0.28)
+        table.rows[1].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+        table.rows[2].height      = Inches(0.20)
+        table.rows[2].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+        table.rows[3].height      = Inches(0.35)
+        table.rows[3].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
 
         # Row 0: merged title
         cell0 = table.cell(0, 0)
@@ -340,34 +348,36 @@ class MedicationErrorDocxGenerator:
         self._style_cell_text(table.cell(0, 0), "النتائج", FONT, 11, bold=True, rtl=True)
         self._set_cell_shading(table.cell(0, 0), SHADE_HEADER)
 
-        # Row 1: instruction (cols 0-5 merged) + current label (col 6)
+        # Row 1: instruction (cols 0-N_HIST-1 merged) + current label (col N_HIST)
         instr = table.cell(1, 0)
-        for c in range(1, COLS - 1):
+        for c in range(1, N_HIST):
             instr = instr.merge(table.cell(1, c))
         self._style_cell_text(
             table.cell(1, 0),
-            "في حال كان هناك نتائج سابقة عن الموضوع الذي يتم تحليله يجب ذكره مع تحديد الفترة:\nالشهر / الفصل / العام",
-            FONT, 10, rtl=True
+            "في حال كان هناك نتائج سابقة عن الموضوع الذي يتم تحليله يجب ذكره مع تحديد الفترة: الشهر / الفصل / العام",
+            FONT, 8, bold=True, rtl=True
         )
         self._set_cell_shading(table.cell(1, 0), SHADE_HEADER)
-        self._style_cell_text(table.cell(1, COLS - 1), "النتيجة الحالية", FONT, 11, bold=True, rtl=True)
-        self._set_cell_shading(table.cell(1, COLS - 1), SHADE_HEADER)
+        self._style_cell_text(table.cell(1, N_HIST), "النتيجة الحالية", FONT, 9, bold=True, rtl=True)
+        self._set_cell_shading(table.cell(1, N_HIST), SHADE_TABLE)
 
-        # Row 2: last 6 history quarter labels
-        last6 = history[-(COLS - 1):] if len(history) >= COLS - 1 else history
-        while len(last6) < COLS - 1:
+        # Row 2: history quarter labels + current quarter
+        last6 = history[-N_HIST:] if len(history) >= N_HIST else list(history)
+        while len(last6) < N_HIST:
             last6 = [{}] + last6
 
-        for i in range(COLS - 1):
+        for i in range(N_HIST):
             entry = last6[i]
             label = f"{entry.get('quarter', '')} {entry.get('year', '')}" if entry.get('quarter') else ""
-            self._style_cell_text(table.cell(2, i), label, FONT, 9, rtl=True)
+            self._style_cell_text(table.cell(2, i), label, FONT, 9, bold=True, rtl=True)
             self._set_cell_shading(table.cell(2, i), SHADE_HEADER)
-        self._style_cell_text(table.cell(2, COLS - 1), "", FONT, 10, rtl=True)
-        self._set_cell_shading(table.cell(2, COLS - 1), SHADE_HEADER)
 
-        # Row 3: last 6 error rates + current rate
-        for i in range(COLS - 1):
+        quarter_label = f"{quarter} {year}".strip()
+        self._style_cell_text(table.cell(2, N_HIST), quarter_label, FONT, 10, bold=True, rtl=True)
+        self._set_cell_shading(table.cell(2, N_HIST), SHADE_TABLE)
+
+        # Row 3: history error rates + current rate
+        for i in range(N_HIST):
             entry = last6[i]
             val = f"{entry['error_rate']:.4f}%" if entry.get('error_rate') is not None else ""
             self._style_cell_text(table.cell(3, i), val, FONT_EN, 10)
@@ -377,23 +387,14 @@ class MedicationErrorDocxGenerator:
             curr = float(current_rate)
         except Exception:
             curr = 0.0
-        self._style_cell_text(table.cell(3, COLS - 1), f"{curr:.4f}%", FONT_EN, 11, bold=True)
+        self._style_cell_text(table.cell(3, N_HIST), f"{curr:.4f}%", FONT_EN, 11, bold=True)
 
-        # Borders
+        # Borders — all sides thick
         for row in table.rows:
             for cell in row.cells:
-                self._set_cell_border(cell, top=BORDER_THIN, bottom=BORDER_THIN,
-                                      left=BORDER_THIN, right=BORDER_THIN)
-        for c in range(COLS):
-            self._set_cell_border(table.cell(0, c), top=BORDER_THICK,
-                                  left=BORDER_THIN, right=BORDER_THIN, bottom=BORDER_THIN)
-            self._set_cell_border(table.cell(3, c), bottom=BORDER_THICK,
-                                  left=BORDER_THIN, right=BORDER_THIN, top=BORDER_THIN)
-        for r in range(4):
-            self._set_cell_border(table.cell(r, 0),         left=BORDER_THICK,
-                                  top=BORDER_THIN, right=BORDER_THIN, bottom=BORDER_THIN)
-            self._set_cell_border(table.cell(r, COLS - 1),  right=BORDER_THICK,
-                                  top=BORDER_THIN, left=BORDER_THIN,  bottom=BORDER_THIN)
+                self._set_cell_border(cell,
+                                      top=BORDER_THICK, bottom=BORDER_THICK,
+                                      left=BORDER_THICK, right=BORDER_THICK)
 
     def _add_analysis_box(self, doc, quarter, year, stats, charts, history=None):
         history = history or []
@@ -496,7 +497,8 @@ class MedicationErrorDocxGenerator:
             prev_quarter=_prev_q, prev_errors=_prev_err, prev_rate=_prev_rate,
             trend_direction=_trend_dir,
         )
-        self._add_bidi_para(cell, _post_text, FONT_ANALYSIS, 11)
+        _post_single = ' '.join(ln.strip() for ln in _post_text.split('\n') if ln.strip())
+        self._add_bidi_para(cell, _post_single, FONT_ANALYSIS, 11)
 
         for p in cell.paragraphs:
             self._zero_spacing(p)
@@ -510,6 +512,7 @@ class MedicationErrorDocxGenerator:
         _prev      = history[-1] if history else {}
         _prev_q    = (f"{_prev.get('quarter','')} {_prev.get('year','')}").strip() or "الفصل السابق"
         _prev_err  = _prev.get('total_errors', 0)
+
         doc.add_page_break()
         summary      = stats.get('summary', {})
         quarter      = summary.get('quarter', 'الفصل الثالث')
@@ -1120,12 +1123,39 @@ class MedicationErrorDocxGenerator:
     # LAST PAGE: Final result, action tables, approval
     # =========================================================================
 
-    def _build_last_page(self, doc):
+    def _build_last_page(self, doc, stats=None):
         doc.add_page_break()
         self._add_spacer(doc, space_before=6)
 
         self._add_titled_row(doc, "النتيجة النهائية", shade=SHADE_HEADER, border=BORDER_MEDIUM)
-        self._add_titled_row(doc, "نتيجة المؤشر مشجعة جدا (0.01%) فهي لم تتخطى الـ target المحدد, 0.03% كذلك لم يظهر أي حالة adverse event أو sentinel.", shade=None, border=BORDER_FINE)
+
+        # ── Dynamic final result text ──────────────────────────────────────────
+        summary      = (stats or {}).get('summary', {})
+        error_rate   = float(summary.get('error_rate', 0))
+        target       = float(summary.get('target', 0.03))
+        ncc_counts   = (stats or {}).get('ncc_merp', {}).get('counts', {})
+
+        # Adverse events: NCC MERP Category E or F
+        adverse_count  = sum(v for k, v in ncc_counts.items()
+                             if k in ('Category E', 'Category F'))
+        # Sentinel events: NCC MERP Category G, H, or I
+        sentinel_count = sum(v for k, v in ncc_counts.items()
+                             if k in ('Category G', 'Category H', 'Category I'))
+
+        if error_rate <= target:
+            performance = f"نتيجة المؤشر مشجعة جداً ({error_rate:.4f}%) فهي لم تتخطى الـ target المحدد {target:.2f}%"
+        else:
+            performance = f"نتيجة المؤشر غير مشجعة ({error_rate:.4f}%) حيث تخطت الـ target المحدد {target:.2f}%"
+
+        if sentinel_count > 0:
+            event_note = f"كذلك ظهرت {sentinel_count} حالة sentinel event."
+        elif adverse_count > 0:
+            event_note = f"كذلك ظهرت {adverse_count} حالة adverse event."
+        else:
+            event_note = "كذلك لم يظهر أي حالة adverse event أو .sentinel"
+
+        final_text = f"{performance}، {event_note}"
+        self._add_titled_row(doc, final_text, shade=None, border=BORDER_FINE)
 
         self._add_spacer(doc, space_before=6)
         self._add_checkbox_question_box(doc)
@@ -1381,12 +1411,7 @@ class MedicationErrorDocxGenerator:
 
 
     def _add_analysis_text(self, doc, text):
-        para = doc.add_paragraph()
-        run  = para.add_run(text)
-        run.font.name = FONT_ANALYSIS
-        run.font.size = Pt(11)
-        self._set_rtl(para)
-        self._zero_spacing(para)
+        self._add_bidi_para(doc, text, FONT_ANALYSIS, 11)
 
     def _add_titled_row(self, doc, text, shade=None, border=BORDER_FINE):
         tbl = doc.add_table(rows=1, cols=1)
@@ -1424,10 +1449,11 @@ class MedicationErrorDocxGenerator:
 
     def _set_rtl(self, para):
         para.paragraph_format.right_to_left = True
-        pPr  = para._element.get_or_add_pPr()
-        bidi = OxmlElement('w:bidi')
-        bidi.set(qn('w:val'), '1')
-        pPr.append(bidi)
+        pPr = para._element.get_or_add_pPr()
+        if pPr.find(qn('w:bidi')) is None:
+            bidi = OxmlElement('w:bidi')
+            bidi.set(qn('w:val'), '1')
+            pPr.append(bidi)
 
     def _set_table_rtl(self, table):
         bidi = OxmlElement('w:bidiVisual')

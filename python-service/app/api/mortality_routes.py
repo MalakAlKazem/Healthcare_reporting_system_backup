@@ -11,17 +11,18 @@ import pandas as pd
 
 import numpy as np
 
-from app.core.data_processor import data_processor
-from app.core.statistics import statistics_calculator
-from app.core.excel_handler import excel_handler
-from app.core.history_manager import history_manager
-from app.services.docx_generator import matplotlib_docx_generator
+from app.mortality.data_processor import data_processor
+from app.mortality.statistics import statistics_calculator
+from app.mortality.excel_handler import excel_handler
+from app.mortality.history_manager import history_manager
+from app.mortality.docx_generator import matplotlib_docx_generator
 
 router = APIRouter()
 
 
 def convert_numpy(obj):
-    """Recursively convert numpy types to native Python types for JSON serialization."""
+    """Recursively convert numpy/datetime types to native Python types for JSON serialization."""
+    import datetime as _dt
     if isinstance(obj, dict):
         return {k: convert_numpy(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -36,6 +37,8 @@ def convert_numpy(obj):
         return bool(obj)
     elif obj is np.nan or (isinstance(obj, float) and np.isnan(obj)):
         return None
+    elif isinstance(obj, (_dt.datetime, _dt.date)):
+        return obj.isoformat()
     return obj
 
 
@@ -90,30 +93,33 @@ async def process_mortality_data(
         logger.info(f"🧹 Cleaned: {len(df_cleaned)} valid records")
 
         # 3. Build admission data from the data itself (building column)
+        # Build admission data using KPI=YES records only (consistent with all other stats)
         admission_data = None
-        if 'building' in df_cleaned.columns:
-            bci_deaths = len(df_cleaned[df_cleaned['building'].str.contains('BCI', case=False, na=False)])
+        if 'building' in df_cleaned.columns and 'include_kpi' in df_cleaned.columns:
+            kpi_df = df_cleaned[df_cleaned['include_kpi'].str.upper() == 'YES']
+            bci_deaths = len(kpi_df[kpi_df['building'].str.contains('BCI', case=False, na=False)])
             # Fallback: classify cardiac departments as BCI
-            if bci_deaths == 0 and 'nursing_department' in df_cleaned.columns:
+            if bci_deaths == 0 and 'nursing_department' in kpi_df.columns:
                 cardiac_depts = ['ICVU', 'CSU', 'CCU', 'ITCU', 'Cardiac', 'ICN']
-                bci_deaths = len(df_cleaned[df_cleaned['nursing_department'].str.contains(
+                bci_deaths = len(kpi_df[kpi_df['nursing_department'].str.contains(
                     '|'.join(cardiac_depts), case=False, na=False
                 )])
-            rah_deaths = len(df_cleaned) - bci_deaths
+            rah_deaths = len(kpi_df) - bci_deaths
+            kpi_total = len(kpi_df)
 
             admission_data = {
                 'bci': {
                     'building': 'BCI',
                     'deaths': bci_deaths,
-                    'percentage': round((bci_deaths / len(df_cleaned)) * 100, 1) if len(df_cleaned) > 0 else 0
+                    'percentage': round((bci_deaths / kpi_total) * 100, 1) if kpi_total > 0 else 0
                 },
                 'rah': {
                     'building': 'RAH',
                     'deaths': rah_deaths,
-                    'percentage': round((rah_deaths / len(df_cleaned)) * 100, 1) if len(df_cleaned) > 0 else 0
+                    'percentage': round((rah_deaths / kpi_total) * 100, 1) if kpi_total > 0 else 0
                 },
                 'total': {
-                    'deaths': len(df_cleaned),
+                    'deaths': kpi_total,
                     'admissions': total_patients
                 }
             }
@@ -172,6 +178,7 @@ async def process_mortality_data(
         mortality_rate = stats.get('mortality_metrics', {}).get('rate', 0.0)
 
         # 12. Save to history
+        # 12a. Save lean comparison data to history
         history_manager.save_quarter(
             quarter=quarter,
             year=year,
@@ -181,6 +188,17 @@ async def process_mortality_data(
             age_groups=age_groups_array,
             departments=departments_dict,
             who_categories=who_dict
+        )
+
+        # 12b. Save full stats to current data file (used by report generator + dashboard)
+        history_manager.save_current_data(
+            quarter=quarter,
+            year=year,
+            statistics=convert_numpy(dict(stats)),
+            who_categories=who_summary or [],
+            records=convert_numpy(records),
+            total_patients=total_patients,
+            validation=convert_numpy(validation),
         )
 
         logger.success(f"✅ Processing complete: {len(records)} records, saved to history")
@@ -211,6 +229,28 @@ async def process_mortality_data(
             except:
                 pass
 
+@router.get("/current")
+async def get_current():
+    """Return the latest uploaded quarter's full data (records + stats) for the dashboard."""
+    try:
+        entry = history_manager.get_latest_current_data()
+        if not entry:
+            return JSONResponse(status_code=404, content={"detail": "No current data found"})
+        return convert_numpy({
+            "records":        entry.get("records", []),
+            "total_records":  len(entry.get("records", [])),
+            "statistics":     entry.get("statistics", {}),
+            "who_categories": entry.get("who_categories", []),
+            "validation":     entry.get("validation", {}),
+            "quarter":        entry.get("quarter", ""),
+            "year":           entry.get("year", ""),
+            "totalPatients":  entry.get("total_patients", 0),
+        })
+    except Exception as e:
+        logger.error(f"Current data fetch error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/history")
 async def get_history():
     try:
@@ -237,12 +277,58 @@ async def generate_report(request: dict):
         File path and name for the generated report
     """
     try:
-        data = request.get('data', {})
         quarter = request.get('quarter', 'الفصل الثالث')
         year = request.get('year', '2025')
 
+        # Primary: load full stats from current data file (saved on upload)
+        current_entry = history_manager.get_current_data(quarter, year)
+        if current_entry:
+            data = {
+                'statistics': current_entry['statistics'],
+                'who_categories': current_entry.get('who_categories', [])
+            }
+        else:
+            # Fallback: reconstruct minimal statistics from the lean history entry
+            hist_entries = history_manager.load_history()
+            hist_entry = next(
+                (r for r in hist_entries
+                 if r.get('quarter') == quarter and r.get('year') == year),
+                None
+            )
+            if hist_entry:
+                age_groups = hist_entry.get('age_groups', [])
+                age_entries = [{'count': c} for c in age_groups]
+                departments_dict = hist_entry.get('departments', {})
+                who_dict = hist_entry.get('who_categories', {})
+                data = {
+                    'statistics': {
+                        'mortality_metrics': {'rate': hist_entry.get('rate', 0)},
+                        'total_deaths': hist_entry.get('deaths', 0),
+                        'kpi_deaths': hist_entry.get('deaths', 0),
+                        'total_patients': hist_entry.get('total_patients', 0),
+                        'departments': [
+                            {'name': k, 'count': v}
+                            for k, v in departments_dict.items()
+                        ],
+                        'who_categories_kpi': who_dict,
+                        'demographics': {
+                            'age_categories': age_entries,
+                            'age_groups': age_entries,
+                        },
+                        'clinical': {},
+                        'buildings': {},
+                        'specialties': [],
+                    },
+                    'who_categories': [
+                        {'category': k, 'count': v}
+                        for k, v in who_dict.items()
+                    ]
+                }
+            else:
+                data = {}
+
         if not data or not data.get('statistics'):
-            raise HTTPException(400, "No statistics data provided")
+            raise HTTPException(400, "No data found for this quarter. Please upload the data first.")
 
         # Load all history excluding current quarter
         # get_last_n_quarters returns newest-first, reverse for charts (oldest-first)
@@ -287,7 +373,7 @@ async def download_report(fileName: str):
     safe_name = os.path.basename(fileName)
     # Shared storage directory (same as Node backend)
     # __file__ is in python-service/app/api/ -> go up 3 levels to project root
-    reports_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'storage', 'reports'))
+    reports_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', 'storage', 'reports'))
     file_path = os.path.join(reports_dir, safe_name)
 
     if not os.path.exists(file_path):

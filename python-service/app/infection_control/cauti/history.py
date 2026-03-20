@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 
 BASE_DIR     = Path(__file__).resolve().parents[3]
-HISTORY_PATH = BASE_DIR / "storage" / "data" / "clabsi_history.json"
-CURRENT_PATH = BASE_DIR / "storage" / "data" / "clabsi_current.json"
+HISTORY_PATH = BASE_DIR / "storage" / "data" / "cauti_history.json"
+CURRENT_PATH = BASE_DIR / "storage" / "data" / "cauti_current.json"
 
 _QUARTER_TO_AR = {
     1: "الفصل الاول",
@@ -75,7 +75,7 @@ def _deduplicate(history):
 def add_or_update_quarter(new_record):
     """
     Save year (string), quarter (Arabic string), summary, and germs_distribution to history.
-    Only raw cases are saved separately in clabsi_current.json.
+    Only raw cases are saved separately in cauti_current.json.
     """
     # Normalise year → string, quarter → Arabic string
     new_record["year"]    = str(new_record["year"])

@@ -9,7 +9,43 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from loguru import logger
 
-from app.infection_control.VAP.vap_statistics import STANDARD_FLOORS, FLOOR_TARGETS
+STANDARD_FLOORS = ["ICU", "CCU", "CSU", "Ped", "ICN", "ITU", "Neonatal"]
+
+FLOOR_TARGETS = {
+    "ICU":      25.0,
+    "CCU":      15.0,
+    "CSU":       9.5,
+    "Ped":       5.5,
+    "ICN":      10.0,
+    "ITU":      25.0,
+    "Neonatal":  0.0,
+}
+
+HISTORY_PATH = Path("storage/data/VAP_history.json")
+CURRENT_PATH = Path("storage/data/VAP_current.json")
+
+
+def load_history() -> list:
+    """Load VAP history from JSON (module-level, mirrors CLABSI/CAUTI pattern)."""
+    if not HISTORY_PATH.exists():
+        return []
+    with open(HISTORY_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_current() -> dict:
+    """Return the latest quarter's raw cases (stored separately from history)."""
+    if not CURRENT_PATH.exists():
+        return {}
+    with open(CURRENT_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_current(data: dict) -> None:
+    """Overwrite the current-quarter file with raw cases only."""
+    CURRENT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(CURRENT_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 # Map English/numeric quarter input → Arabic display name stored in JSON
@@ -94,63 +130,47 @@ class VAPHistory:
 
     # ── Write ─────────────────────────────────────────────────────────────────
 
-    def save_quarter(self, quarter: str, year: int, stats: Dict) -> bool:
+    def save_quarter(self, quarter: str, year: int, stats: Dict, cases: list = None) -> bool:
         """
         Save (or update) one quarter's VAP data to history.
 
-        Stored fields per quarter
-        ─────────────────────────
-        quarter, year
-        overall_rate, total_cases, total_vent_days
+        Storage format mirrors CLABSI/CAUTI exactly:
+          summary:            { floor: { cases, ventilator_days, rate } }
+          germs_distribution: { floor: { germ: count } }
 
-        floors: {
-          ICU: { cases, ventilator_days, rate, target },
-          CCU: { ... },
-          ...
-        }
-
-        germs_by_floor: {
-          ICU: { counts: {germ: n}, percentages: {germ: %}, total: n },
-          ...
-        }
-        germs_overall:  { counts, percentages, total }
+        Raw cases are saved separately to VAP_current.json (not in history).
+        cases: raw processor output cases (passed from routes, same pattern as CLABSI/CAUTI)
         """
         ar_quarter = _to_arabic_quarter(quarter)
-        logger.info(f"💾 Saving VAP quarter: {ar_quarter} {year}")
+        logger.info(f"Saving VAP quarter: {ar_quarter} {year}")
 
-        summary     = stats.get("summary", {})
         floor_stats = stats.get("floor_stats", {})
 
-        # Strip germs_by_floor of empty floors to keep JSON clean
-        germs_by_floor_clean = {
-            floor: data
+        # summary — floor-keyed, no target (matches CLABSI/CAUTI format)
+        summary_entry = {
+            floor: {
+                "cases":           floor_stats.get(floor, {}).get("cases", 0),
+                "ventilator_days": floor_stats.get(floor, {}).get("ventilator_days", 0),
+                "rate":            floor_stats.get(floor, {}).get("rate", 0.0),
+            }
+            for floor in STANDARD_FLOORS
+        }
+
+        # germs_distribution — flat {floor: {germ: count}} matching CLABSI/CAUTI
+        germs_distribution = {
+            floor: data.get("counts", {})
             for floor, data in stats.get("germs_by_floor", {}).items()
             if data.get("total", 0) > 0
         }
 
-        # Build compact entry matching the exact JSON schema
+        # Save raw cases to current file (same as CLABSI/CAUTI — no pre-building)
+        save_current({"year": str(year), "quarter": ar_quarter, "cases": cases or []})
+
         entry = {
-            "quarter":         ar_quarter,
-            "year":            str(year),
-            "total_cases":     summary.get("total_cases", 0),
-            "total_vent_days": summary.get("total_vent_days", 0),
-            # Per-floor: cases, ventilator_days, rate, target (no pct_of_total)
-            "floors": {
-                floor: {
-                    "cases":           floor_stats.get(floor, {}).get("cases", 0),
-                    "ventilator_days": floor_stats.get(floor, {}).get("ventilator_days", 0),
-                    "rate":            floor_stats.get(floor, {}).get("rate", 0.0),
-                    "target":          FLOOR_TARGETS.get(floor, 0.0),
-                }
-                for floor in STANDARD_FLOORS
-            },
-            # Germs stored for chart comparison across quarters
-            "germs_overall":  stats.get("germs_overall", {}),
-            "germs_by_floor": germs_by_floor_clean,
-            # Per-floor case detail tables (used by DOCX report generator)
-            "icu_cases_table": stats.get("icu_cases_table", []),
-            "ccu_cases_table": stats.get("ccu_cases_table", []),
-            "icn_cases_table": stats.get("icn_cases_table", []),
+            "quarter":            ar_quarter,
+            "year":               str(year),
+            "summary":            summary_entry,
+            "germs_distribution": germs_distribution,
         }
 
         # Upsert — match on Arabic quarter name
@@ -187,15 +207,10 @@ class VAPHistory:
     # ── Derived helpers for chart data ────────────────────────────────────────
 
     def get_floor_trend(self, floor: str, n: int = 5) -> List[Dict]:
-        """
-        Return last N quarters with stats for a specific floor.
-        Used by Chart 1 (ICU VAP rate trend).
-
-        Each item: { quarter, year, cases, ventilator_days, rate, target }
-        """
+        """Return last N quarters with stats for a specific floor."""
         result = []
         for entry in self.history[-n:]:
-            f = entry.get("floors", {}).get(floor, {})
+            f = entry.get("summary", entry.get("floors", {})).get(floor, {})
             result.append({
                 "quarter":         entry["quarter"],
                 "year":            entry["year"],
@@ -229,23 +244,34 @@ class VAPHistory:
           germs:    [ "germ1", "germ2", ... ]  # unified sorted list
         }
         """
-        # Take all quarters that have at least 1 case for this floor
+        # Take all quarters that have at least 1 germ entry for this floor
         quarters_with_data = [
             e for e in self.history
-            if e.get("germs_by_floor", {}).get(floor, {}).get("total", 0) > 0
+            if e.get("germs_distribution", e.get("germs_by_floor", {})).get(floor)
         ]
 
         if not quarters_with_data:
             return {"current": None, "previous": None, "germs": []}
 
         def _raw(entry):
-            gbd = entry.get("germs_by_floor", {}).get(floor, {})
+            # Support both new format (germs_distribution) and old (germs_by_floor)
+            gd = entry.get("germs_distribution", {}).get(floor)
+            if gd is not None:
+                # New format: flat {germ: count}
+                counts = gd
+                total  = sum(counts.values())
+                percentages = {g: round(n / total * 100, 1) for g, n in counts.items()} if total else {}
+            else:
+                gbd = entry.get("germs_by_floor", {}).get(floor, {})
+                counts      = gbd.get("counts", {})
+                total       = gbd.get("total", 0)
+                percentages = gbd.get("percentages", {})
             return {
                 "quarter":     entry["quarter"],
                 "year":        entry["year"],
-                "total":       gbd.get("total", 0),
-                "counts":      gbd.get("counts", {}),
-                "percentages": gbd.get("percentages", {}),
+                "total":       total,
+                "counts":      counts,
+                "percentages": percentages,
             }
 
         cur_raw  = _raw(quarters_with_data[-1])
@@ -335,7 +361,7 @@ class VAPHistory:
 
         for entry in recent:
             for floor in STANDARD_FLOORS:
-                f = entry.get("floors", {}).get(floor, {})
+                f = entry.get("summary", entry.get("floors", {})).get(floor, {})
                 data[floor].append({
                     "quarter":         entry["quarter"],
                     "year":            entry["year"],

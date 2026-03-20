@@ -12,15 +12,15 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from loguru import logger
 
-from app.infection_control.VAP.vap_processor import process_vap_sheet
-from app.infection_control.VAP.vap_statistics import VAPStatistics
-from app.infection_control.VAP.vap_history import VAPHistory
+from app.infection_control.vap.processor import process_vap_sheet
+from app.infection_control.vap.history import VAPHistory, load_history, load_current, FLOOR_TARGETS, STANDARD_FLOORS
+from app.infection_control.ic_statistics import InfectionControlStatistics
 
 router = APIRouter(prefix="/api/vap", tags=["VAP"])
 
 # ── Storage paths ──────────────────────────────────────────────────────────────
 UPLOAD_DIR  = Path("storage/uploads/vap")
-HISTORY_PATH = Path("storage/data/VAP_history_test.json")
+HISTORY_PATH = Path("storage/data/VAP_history.json")
 CHARTS_DIR  = Path("storage/charts/vap")
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -29,6 +29,74 @@ CHARTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Shared instances ───────────────────────────────────────────────────────────
 _history = VAPHistory(str(HISTORY_PATH))
+_ic      = InfectionControlStatistics("vap")
+
+
+def _compute_vap_stats(processed: dict, floor_vent_days: dict, quarter, year: int) -> dict:
+    """Compute VAP statistics — delegates shared logic to InfectionControlStatistics."""
+    from app.infection_control.vap.history import _to_arabic_quarter
+
+    cases       = processed["cases"]
+    total_cases = processed["meta"]["total_cases"]
+
+    ic              = _ic.calculate_all_statistics(cases, floor_vent_days, quarter, year)
+    total_vent_days = ic["total_days"]
+    overall_rate    = ic["overall_rate"]
+
+    floor_stats: dict = {}
+    for floor in STANDARD_FLOORS:
+        fs = ic["summary"].get(floor, {})
+        n  = fs.get("cases", 0)
+        floor_stats[floor] = {
+            "cases":           n,
+            "ventilator_days": fs.get("ventilator_days", 0),
+            "rate":            fs.get("rate", 0.0),
+            "target":          FLOOR_TARGETS.get(floor, 0.0),
+            "pct_of_total":    round(n / total_cases * 100, 1) if total_cases > 0 else 0.0,
+        }
+
+    germs_by_floor: dict = {}
+    for floor in STANDARD_FLOORS:
+        flat  = ic["germs_distribution"].get(floor, {})
+        total = sum(flat.values())
+        flat_sorted = dict(sorted(flat.items(), key=lambda x: x[1], reverse=True))
+        germs_by_floor[floor] = {
+            "counts":      flat_sorted,
+            "total":       total,
+            "percentages": {g: round(n / total * 100, 1) for g, n in flat_sorted.items()} if total else {},
+        }
+
+    all_counts: dict = {}
+    for c in cases:
+        g = (c.get("germs") or "Unknown").strip()
+        all_counts[g] = all_counts.get(g, 0) + 1
+    all_counts    = dict(sorted(all_counts.items(), key=lambda x: x[1], reverse=True))
+    total_overall = sum(all_counts.values())
+    germs_overall = {
+        "counts":      all_counts,
+        "percentages": {g: round(n / total_overall * 100, 1) for g, n in all_counts.items()} if total_overall else {},
+        "total":       total_overall,
+    }
+
+    ar_quarter = _to_arabic_quarter(quarter)
+
+    return {
+        "summary": {
+            "quarter":         ar_quarter,
+            "year":            year,
+            "total_cases":     total_cases,
+            "total_vent_days": total_vent_days,
+            "overall_rate":    overall_rate,
+        },
+        "floor_stats":    floor_stats,
+        "germs_overall":  germs_overall,
+        "germs_by_floor": germs_by_floor,
+        "risk_factors":   ic["risk_factors"],
+        "diagnoses":      processed["diagnoses"],
+        "monthly_trend":  processed["monthly_trend"],
+        "age_groups":     processed["age_groups"],
+        "genders":        processed["genders"],
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -78,13 +146,11 @@ async def process_data(
         }
 
         # ── Calculate statistics ───────────────────────────────────────────────
-        stats = VAPStatistics().calculate_all_statistics(
-            processed, floor_vent_days, quarter, year
-        )
+        stats = _compute_vap_stats(processed, floor_vent_days, quarter, year)
 
         # ── Save to history ────────────────────────────────────────────────────
         _history.load_history()          # refresh before saving
-        _history.save_quarter(quarter, year, stats)
+        _history.save_quarter(quarter, year, stats, processed["cases"])
 
         logger.success(f"✅ VAP processed & saved: {quarter} {year}")
 
@@ -115,6 +181,12 @@ async def get_history():
     """Return all saved VAP quarters (oldest → newest)."""
     _history.load_history()
     return JSONResponse(_history.get_all())
+
+
+@router.get("/current")
+async def get_current():
+    """Return the current quarter's raw case data."""
+    return JSONResponse(load_current())
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -176,7 +248,7 @@ async def get_chart(chart_name: str):
         raise HTTPException(400, f"Unknown chart: {chart_name}. Valid: {sorted(valid)}")
 
     try:
-        from .vap_chart_generator import VAPChartGenerator
+        from app.infection_control.vap.chart_generator import VAPChartGenerator
         _history.load_history()
         chart_data = _history.get_chart_data()
         gen  = VAPChartGenerator(str(CHARTS_DIR))
@@ -213,58 +285,22 @@ async def delete_quarter(quarter: str, year: int):
 # POST /api/vap/generate-report
 # ══════════════════════════════════════════════════════════════════════════════
 @router.post("/generate-report")
-async def generate_vap_report(request: dict):
+def generate_vap_report():
     """
-    Generate a DOCX VAP report from already-processed statistics.
-
-    JSON body:
-        data:    { statistics: <stats dict from /process-data> }
-        quarter: str  (e.g. "الفصل الثالث")
-        year:    str  (e.g. "2025")
-
-    Returns: { success, filePath, fileName }
+    Generate a DOCX VAP report from the full history file.
+    All statistics (cases, germs, rates) are already stored in the history JSON.
     """
+    history = load_history()
+    if not history:
+        raise HTTPException(status_code=404, detail="No VAP data available")
     try:
-        data    = request.get("data", {})
-        quarter = request.get("quarter", "الفصل الثالث")
-        year    = str(request.get("year", "2025"))
-
-        stats = data.get("statistics", {})
-        if not stats or not stats.get("summary"):
-            raise HTTPException(400, "No statistics data provided")
-
-        # All history except the current quarter (to avoid duplicate in results table)
-        _history.load_history()
-        history = [
-            h for h in _history.get_all()
-            if not (h["quarter"] == quarter and h["year"] == str(year))
-        ]
-
-        logger.info(
-            f"Generating VAP DOCX for {quarter} {year} "
-            f"with {len(history)} history entries"
-        )
-
-        from app.infection_control.VAP.vap_docx_generator import VAPDocxGenerator
-        gen    = VAPDocxGenerator()
-        result = gen.generate_report(
-            stats=stats,
-            history=history,
-            options={"quarter": quarter, "year": year},
-        )
-
-        logger.success(f"VAP report generated: {result['fileName']}")
-        return {
-            "success":  True,
-            "filePath": result["filePath"],
-            "fileName": result["fileName"],
-        }
-
-    except HTTPException:
-        raise
+        from app.infection_control.vap.docx_generator import VAPDocxGenerator
+        current = load_current()
+        gen     = VAPDocxGenerator()
+        result  = gen.generate_report(history=history, targets=FLOOR_TARGETS, current=current)
+        return {"success": True, "filePath": result["filePath"], "fileName": result["fileName"]}
     except Exception as exc:
-        logger.error(f"VAP report generation error: {exc}")
-        raise HTTPException(500, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -278,7 +314,7 @@ async def download_vap_report(fileName: str):
     """
     safe_name   = os.path.basename(fileName)
     reports_dir = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), '..', '..', '..', 'storage', 'reports')
+        os.path.join(os.path.dirname(__file__), '..', '..', 'storage', 'reports')
     )
     file_path = os.path.join(reports_dir, safe_name)
 
@@ -290,3 +326,9 @@ async def download_vap_report(fileName: str):
         filename=safe_name,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
+
+
+@router.get("/targets")
+def get_targets():
+    """Return VAP targets per 1,000 ventilator-days per department."""
+    return FLOOR_TARGETS

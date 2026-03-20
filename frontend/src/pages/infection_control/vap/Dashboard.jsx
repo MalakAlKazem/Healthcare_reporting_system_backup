@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import styles from "../styles/Dashboard.module.css";
+import { useTranslation } from 'react-i18next';
+import styles from "../../../styles/Dashboard.module.css";
 import {
   ResponsiveContainer,
   LineChart,
@@ -13,7 +14,6 @@ import {
 
 const API_URL = "http://localhost:8000/api/vap";
 
-/* ── Colors ─────────────────────────────────────────────────────────────── */
 const GREEN  = "#16a34a";
 const RED    = "#dc2626";
 const AMBER  = "#f59e0b";
@@ -44,17 +44,15 @@ const tdStyle = {
   borderBottom: "1px solid #e2e8f0"
 };
 
-/* ── Floor targets (per 1000 ventilator days) ───────────────────────────── */
-const TARGETS = {
-  ICU: 25,
-  CCU: 15,
-  CSU: 9.5,
-  ICN: 10,
-  Ped: 5.5,
-  ITU: 25
+// Targets are fetched from /api/vap/targets on mount
+
+const QUARTER_AR = {
+  1: 'الفصل الأول',
+  2: 'الفصل الثاني',
+  3: 'الفصل الثالث',
+  4: 'الفصل الرابع',
 };
 
-/* ── Quarter abbreviation helper ────────────────────────────────────────── */
 const shortQ = (quarter) => {
   const map = {
     "الفصل الأول":  "Q1",
@@ -65,8 +63,20 @@ const shortQ = (quarter) => {
   return map[quarter] || quarter;
 };
 
-/* ── Semicircle gauge ───────────────────────────────────────────────────── */
+const QUARTER_KEY_MAP = {
+  "الفصل الأول":  "quarterFirst",
+  "الفصل الثاني": "quarterSecond",
+  "الفصل الثالث": "quarterThird",
+  "الفصل الرابع": "quarterFourth",
+};
+
+function qLabel(q, y, t) {
+  const key = QUARTER_KEY_MAP[q];
+  return `${key ? t(key) : q} ${y}`;
+}
+
 function DepartmentGauge({ name, rate, target, ar }) {
+  const { t } = useTranslation();
   const MAX     = Math.max(rate * 1.5, target * 2, 5);
   const ratePct = Math.min(rate, MAX) / MAX;
   const tgtPct  = Math.min(target, MAX) / MAX;
@@ -102,7 +112,7 @@ function DepartmentGauge({ name, rate, target, ar }) {
           {rate.toFixed(2)}‰
         </text>
         <text x="100" y="98" textAnchor="middle" fontSize="10" fill="#94a3b8">
-          {ar ? 'الهدف' : 'target'} {target}‰
+          {t('vapTargetLabel')} {target}‰
         </text>
       </svg>
 
@@ -110,15 +120,15 @@ function DepartmentGauge({ name, rate, target, ar }) {
                     background: isAbove ? "#fef2f2" : "#f0fdf4",
                     color: isAbove ? RED : GREEN, borderRadius: 20,
                     padding: "5px 16px", fontSize: 12, fontWeight: 700, marginTop: 6 }}>
-        {isAbove ? (ar ? "▲ أعلى من الهدف" : "▲ Above Target") : (ar ? "▼ أقل من الهدف" : "▼ Below Target")}
+        {isAbove ? t('vapAboveTarget') : t('vapBelowTarget')}
       </div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 16,
                     marginTop: 16, fontSize: 12, color: SLATE }}>
         {[
-          { label: ar ? "الفعلي" : "Actual",                        value: `${rate.toFixed(2)}‰`,                      color: isAbove ? RED : GREEN },
-          { label: ar ? "الهدف"  : "Target",                        value: `${target}‰`,                               color: AMBER },
-          { label: isAbove ? (ar ? "فائض" : "Over") : (ar ? "ناقص" : "Under"), value: `${Math.abs(rate - target).toFixed(2)}‰`, color: isAbove ? RED : GREEN }
+          { label: t('vapActual'),                                                              value: `${rate.toFixed(2)}‰`,                      color: isAbove ? RED : GREEN },
+          { label: t('vapTargetLabel'),                                                         value: `${target}‰`,                               color: AMBER },
+          { label: isAbove ? t('vapOver') : t('vapUnder'),  value: `${Math.abs(rate - target).toFixed(2)}‰`, color: isAbove ? RED : GREEN }
         ].map((item, i, arr) => (
           <React.Fragment key={item.label}>
             <div style={{ textAlign: "center" }}>
@@ -133,17 +143,24 @@ function DepartmentGauge({ name, rate, target, ar }) {
   );
 }
 
-/* ── Main Dashboard ─────────────────────────────────────────────────────── */
 function VapDashboard({ language }) {
-  const ar = language === 'ar';
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { t, i18n } = useTranslation();
+  const ar = i18n.language === 'ar';
+  const [history,     setHistory]     = useState([]);
+  const [targets,     setTargets]     = useState({});
+  const [currentData, setCurrentData] = useState(null);
+  const [loading,     setLoading]     = useState(true);
 
   useEffect(() => {
-    fetch(`${API_URL}/history`)
-      .then(res => res.json())
-      .then(result => {
-        if (Array.isArray(result) && result.length > 0) setHistory(result);
+    Promise.all([
+      fetch(`${API_URL}/history`).then(r => r.json()),
+      fetch(`${API_URL}/targets`).then(r => r.json()),
+      fetch(`${API_URL}/current`).then(r => r.json()).catch(() => null),
+    ])
+      .then(([hist, tgts, cur]) => {
+        if (Array.isArray(hist) && hist.length > 0) setHistory(hist);
+        setTargets(tgts);
+        if (cur && cur.quarter) setCurrentData(cur);
         setLoading(false);
       })
       .catch(err => {
@@ -152,20 +169,29 @@ function VapDashboard({ language }) {
       });
   }, []);
 
-  if (loading) return <div className={styles.emptyState}>{ar ? 'جارٍ التحميل...' : 'Loading...'}</div>;
+  if (loading) return <div className={styles.emptyState}>{t('vapLoadingText')}</div>;
 
   if (!history.length) {
     return (
       <div className={styles.emptyState}>
-        <h2>{ar ? 'لا توجد بيانات VAP' : 'No VAP data available'}</h2>
-        <p>{ar ? 'قم بتحميل تقرير VAP للبدء.' : 'Upload a VAP report to get started.'}</p>
+        <h2>{t('noVapData')}</h2>
+        <p>{t('noVapDataDesc')}</p>
       </div>
     );
   }
 
-  const latest = history[history.length - 1];
+  const params   = new URLSearchParams(window.location.search);
+  const pQ       = params.get('quarter');
+  const pY       = params.get('year');
+  const matchIdx = pQ && pY
+    ? history.findIndex(e => String(e.year) === String(pY) && e.quarter === QUARTER_AR[Number(pQ)])
+    : -1;
+  const latest = matchIdx >= 0
+    ? history[matchIdx]
+    : (currentData?.quarter && currentData?.year)
+      ? (history.find(e => e.quarter === currentData.quarter && String(e.year) === String(currentData.year)) || history[history.length - 1])
+      : history[history.length - 1];
 
-  /* ── Quarterly performance summary table ── */
   const SummaryTable = () => (
     <div style={{ background: "#ffffff", borderRadius: "14px",
                   boxShadow: "0 6px 18px rgba(0,0,0,0.06)", overflow: "hidden",
@@ -173,7 +199,7 @@ function VapDashboard({ language }) {
       <div style={{ padding: "1rem 1.5rem",
                     background: "linear-gradient(to right, #dbeafe, #ffffff)",
                     borderBottom: "1px solid #e2e8f0" }}>
-        <h3 style={{ margin: 0, color: "#1e3a8a" }}>{ar ? 'ملخص الأداء الفصلي لـ VAP' : 'VAP Quarterly Performance Summary'}</h3>
+        <h3 style={{ margin: 0, color: "#1e3a8a" }}>{t('vapQuarterlyPerformance')}</h3>
       </div>
 
       <div style={{ overflowX: "auto" }}>
@@ -181,44 +207,40 @@ function VapDashboard({ language }) {
                         fontSize: "14px", tableLayout: "fixed" }}>
           <thead style={{ background: "#f1f5f9" }}>
             <tr>
-              <th style={thStyle}>{ar ? 'القسم (الهدف)' : 'Department (Target)'}</th>
+              <th style={thStyle}>{t('vapDeptTarget')}</th>
               {history.map((q, i) => (
-                <th key={i} style={thStyle}>
-                  {shortQ(q.quarter)} {q.year}
-                </th>
+                <th key={i} style={thStyle}>{shortQ(q.quarter)} {q.year}</th>
               ))}
             </tr>
           </thead>
 
           <tbody>
-            {Object.keys(TARGETS).map((dept, rowIdx) => {
-              const latestRate = latest.floors?.[dept]?.rate;
+            {Object.keys(targets).map((dept, rowIdx) => {
+              const latestRate = latest.summary?.[dept]?.rate;
               return (
                 <tr key={dept} style={{ background: rowIdx % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
-                  {/* Department column */}
                   <td style={{ ...tdStyle, fontWeight: 600, color: "#1e293b", minWidth: 50 }}>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <span>{dept}</span>
                       <span style={{ fontSize: "12px", color: "#64748b", marginTop: 2 }}>
-                        {ar ? 'الهدف:' : 'Target:'} {TARGETS[dept]}‰
+                        {t('vapTarget')} {targets[dept]}‰
                       </span>
                       {latestRate != null && (
                         <span style={{ fontSize: "12px", marginTop: 4, fontWeight: 600,
-                                       color: latestRate > TARGETS[dept] ? RED : GREEN }}>
-                          {ar ? 'الأحدث:' : 'Latest:'} {latestRate}‰
+                                       color: latestRate > targets[dept] ? RED : GREEN }}>
+                          {t('vapLatest')} {latestRate}‰
                         </span>
                       )}
                     </div>
                   </td>
 
-                  {/* Quarter cells */}
                   {history.map((q, colIdx) => {
-                    const floor      = q.floors?.[dept];
+                    const floor      = q.summary?.[dept];
                     const cases      = floor?.cases ?? null;
                     const days       = floor?.ventilator_days ?? null;
                     const rate       = floor?.rate ?? null;
-                    const isAbove    = rate !== null && rate > TARGETS[dept];
-                    const prevRate   = colIdx > 0 ? history[colIdx - 1].floors?.[dept]?.rate ?? null : null;
+                    const isAbove    = rate !== null && rate > targets[dept];
+                    const prevRate   = colIdx > 0 ? history[colIdx - 1].summary?.[dept]?.rate ?? null : null;
                     const arrow      = prevRate !== null && rate !== null
                       ? rate > prevRate ? " ↑" : rate < prevRate ? " ↓" : ""
                       : "";
@@ -250,21 +272,19 @@ function VapDashboard({ language }) {
     </div>
   );
 
-  /* ── Per-department section ── */
   const DeptSection = ({ dept }) => {
-    const latestFloor = latest.floors?.[dept];
+    const latestFloor = latest.summary?.[dept];
     if (!latestFloor) return null;
 
     const trendData = history.map(q => ({
       label:  `${shortQ(q.quarter)} ${q.year}`,
-      rate:   q.floors?.[dept]?.rate  || 0,
-      target: TARGETS[dept]
+      rate:   q.summary?.[dept]?.rate  || 0,
+      target: targets[dept]
     }));
 
-    /* Germ heatmap data from germs_by_floor */
     const validQuarters = history.filter(
-      q => q.germs_by_floor?.[dept] &&
-           Object.keys(q.germs_by_floor[dept].counts || {}).length > 0
+      q => q.germs_distribution?.[dept] &&
+           Object.keys(q.germs_distribution[dept] || {}).length > 0
     );
 
     const GermHeatmap = () => {
@@ -273,20 +293,18 @@ function VapDashboard({ language }) {
       const quarterKeys = validQuarters.map(q => `${shortQ(q.quarter)} ${q.year}`);
       const latestKey   = quarterKeys[quarterKeys.length - 1];
 
-      /* Collect all germ names */
       const germSet = new Set();
       validQuarters.forEach(q => {
-        Object.keys(q.germs_by_floor[dept].counts).forEach(g => germSet.add(g));
+        Object.keys(q.germs_distribution[dept]).forEach(g => germSet.add(g));
       });
       const germs = Array.from(germSet);
 
-      /* Build data rows */
       const data = germs.map(germ => {
         const row = { germ, values: {} };
         validQuarters.forEach((q, qi) => {
           const qKey       = quarterKeys[qi];
-          const count      = q.germs_by_floor[dept].counts[germ] || 0;
-          const totalCases = q.floors?.[dept]?.cases || 0;
+          const count      = q.germs_distribution[dept][germ] || 0;
+          const totalCases = q.summary?.[dept]?.cases || 0;
           row.values[qKey] = {
             count,
             percent: totalCases > 0 ? (count / totalCases) * 100 : 0
@@ -312,7 +330,7 @@ function VapDashboard({ language }) {
 
       return (
         <div style={{ marginBottom: "2rem" }}>
-          <h3 style={{ marginBottom: 16 }}>{ar ? 'خريطة توزيع الجراثيم' : 'Germ Distribution Heatmap'}</h3>
+          <h3 style={{ marginBottom: 16 }}>{t('germDistributionHeatmap')}</h3>
           <div style={{ overflowX: "auto" }}>
             <div style={{ display: "grid",
                           gridTemplateColumns: `200px repeat(${quarterKeys.length}, 1fr)`,
@@ -353,16 +371,15 @@ function VapDashboard({ language }) {
           {dept} — {latest.quarter} {latest.year}
         </h2>
 
-        {/* Gauge + Trend */}
         <div style={{ display: "grid", gridTemplateColumns: "300px 1fr",
                       gap: "2rem", marginBottom: "2rem" }}>
-          <DepartmentGauge name={dept} rate={latestFloor.rate} target={TARGETS[dept]} ar={ar} />
+          <DepartmentGauge name={dept} rate={latestFloor.rate} target={targets[dept]} ar={ar} />
 
           <div style={{ background: "white", borderRadius: 20, padding: 20,
                         boxShadow: "0 8px 25px rgba(0,0,0,0.05)" }}>
             <h3 style={{ marginBottom: 16 }}>
-              {ar ? 'معدل VAP الفصلي مقابل الهدف' : 'Quarterly VAP Rate vs Target'}
-              <span style={{ color: RED, fontWeight: 600 }}> ({TARGETS[dept]}‰)</span>
+              {t('vapQuarterlyRateVsTarget')}
+              <span style={{ color: RED, fontWeight: 600 }}> ({targets[dept]}‰)</span>
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={trendData}
@@ -374,15 +391,15 @@ function VapDashboard({ language }) {
                 <Tooltip {...TS}
                   formatter={(v, name) => [
                     `${v.toFixed(2)}‰`,
-                    name === "rate" ? (ar ? "الفعلي" : "Actual") : (ar ? "الهدف" : "Target")
+                    name === "rate" ? t('vapActual') : t('vapTargetLabel')
                   ]} />
                 <Legend verticalAlign="top" height={30} />
-                <Line type="monotone" dataKey="rate" name={ar ? "المعدل الفعلي" : "Actual Rate"}
+                <Line type="monotone" dataKey="rate" name={t('vapActualRate')}
                       stroke="#2563eb" strokeWidth={2.5}
                       dot={{ r: 4, fill: "#2563eb" }}
                       label={{ position: "top", fontSize: 10, fontWeight: 700,
                                fill: "#2563eb", formatter: v => `${v.toFixed(1)}‰` }} />
-                <Line type="monotone" dataKey="target" name={ar ? "الهدف" : "Target"}
+                <Line type="monotone" dataKey="target" name={t('vapTargetLabel')}
                       stroke={RED} strokeDasharray="6 3"
                       strokeWidth={2} dot={false} />
               </LineChart>
@@ -397,9 +414,24 @@ function VapDashboard({ language }) {
 
   return (
     <div className={styles.dashboard} dir={ar ? "rtl" : "ltr"}>
+
+      {/* ── Page Header ── */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{t("vapDashboardTitle")}</h1>
+          <p className={styles.pageSubtitle}>{t("vapDashboardSubtitle")}</p>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#1e3a8a", background: "#dbeafe", padding: "6px 14px", borderRadius: 10 }}>
+            {qLabel(latest.quarter, latest.year, t)}
+          </div>
+          <div style={{ fontSize: 11, color: SLATE, marginTop: 4 }}>{t("currentQuarter")}</div>
+        </div>
+      </div>
+
       <SummaryTable />
       <div style={{ marginTop: "1rem" }}>
-        {Object.keys(TARGETS).map(dept => (
+        {Object.keys(targets).map(dept => (
           <DeptSection key={dept} dept={dept} />
         ))}
       </div>

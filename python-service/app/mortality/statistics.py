@@ -60,11 +60,11 @@ class MortalityStatistics:
                 if str(cat).strip() and str(cat).strip().lower() != 'nan'
             }
 
-        # Buildings
+        # Buildings (KPI deaths only, consistent with all other stats)
         if admission_data:
             stats['buildings'] = admission_data
         else:
-            stats['buildings'] = self._buildings(df)
+            stats['buildings'] = self._buildings(kpi_df)
         
         logger.success("✅ Statistics calculated")
         return stats

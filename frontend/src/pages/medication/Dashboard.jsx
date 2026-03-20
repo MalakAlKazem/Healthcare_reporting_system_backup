@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from '../styles/Dashboard.module.css';
+import { useTranslation } from 'react-i18next';
+import styles from '../../styles/Dashboard.module.css';
 
 import {
   LineChart, Line,
@@ -262,16 +263,17 @@ function HBarChart({ data, dataKey, nameKey, color = BLUE }) {
 }
 
 // ─── Department Table ─────────────────────────────────────────────────────────
-function DeptTable({ deptData, totalErrors, ar }) {
+function DeptTable({ deptData, totalErrors }) {
+  const { t } = useTranslation();
   const max = Math.max(...deptData.map(d => d.count), 1);
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
       <thead>
         <tr>
           <th style={{ ...TH_STYLE, width: '5%' }}>#</th>
-          <th style={{ ...TH_STYLE, width: '36%' }}>{ar ? 'القسم' : 'Department'}</th>
-          <th style={{ ...TH_STYLE, width: '10%', textAlign: 'center' }}>{ar ? 'الأخطاء' : 'Errors'}</th>
-          <th style={{ ...TH_STYLE, width: '49%' }}>{ar ? 'النسبة' : 'Share'}</th>
+          <th style={{ ...TH_STYLE, width: '36%' }}>{t('medDeptColumnDepartment')}</th>
+          <th style={{ ...TH_STYLE, width: '10%', textAlign: 'center' }}>{t('medDeptColumnErrors')}</th>
+          <th style={{ ...TH_STYLE, width: '49%' }}>{t('medDeptColumnShare')}</th>
         </tr>
       </thead>
       <tbody>
@@ -295,7 +297,7 @@ function DeptTable({ deptData, totalErrors, ar }) {
           );
         })}
         <tr style={{ background: SLATE_LIGHT, fontWeight: 700, borderTop: `2px solid ${BORDER}` }}>
-          <td colSpan={2} style={{ ...TD_STYLE, color: '#1e293b' }}>{ar ? 'الإجمالي' : 'Total'}</td>
+          <td colSpan={2} style={{ ...TD_STYLE, color: '#1e293b' }}>{t('medDeptTotal')}</td>
           <td style={{ ...TD_STYLE, color: '#1e293b', textAlign: 'center' }}>{totalErrors}</td>
           <td style={{ ...TD_STYLE, color: '#1e293b' }}>100%</td>
         </tr>
@@ -331,7 +333,7 @@ function CauseDistributionChart({ data }) {
 
 // ─── Heatmap ──────────────────────────────────────────────────────────────────
 // rows/cols are label arrays; matrix is { rowKey: { colKey: number } }
-function Heatmap({ rows, cols, matrix, rowLabel, colLabel }) {
+function Heatmap({ rows, cols, matrix, rowLabel, colLabel, grandTotal }) {
   const allVals = rows.flatMap(r => cols.map(c => matrix[r]?.[c] ?? 0));
   const max     = Math.max(...allVals, 1);
 
@@ -387,7 +389,7 @@ function Heatmap({ rows, cols, matrix, rowLabel, colLabel }) {
               return <td key={col} style={{ padding: '9px 10px', textAlign: 'center', fontWeight: 800, fontSize: 12, borderTop: `2px solid ${BORDER}`, borderRight: `1px solid ${BORDER}`, color: BLUE }}>{colTotal || '—'}</td>;
             })}
             <td style={{ padding: '9px 10px', textAlign: 'center', fontWeight: 800, fontSize: 12, borderTop: `2px solid ${BORDER}`, color: BLUE, background: '#bfdbfe' }}>
-              {rows.reduce((s, r) => s + cols.reduce((ss, c) => ss + (matrix[r]?.[c] ?? 0), 0), 0)}
+              {grandTotal ?? rows.reduce((s, r) => s + cols.reduce((ss, c) => ss + (matrix[r]?.[c] ?? 0), 0), 0)}
             </td>
           </tr>
         </tbody>
@@ -436,63 +438,73 @@ function buildCrossTab(rowDict, colDict) {
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD
 // ═════════════════════════════════════════════════════════════════════════════
-function MedicationDashboard({ language }) {
+function MedicationDashboard({ language, data }) {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const ar = language === 'ar';
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
+  const ar = i18n.language === 'ar';
+  const [history, setHistory]           = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const TARGET = 0.03;
 
+  // Fetch lean history for trend charts only
   useEffect(() => {
     fetch('http://localhost:8000/api/medication/history')
       .then(r => r.json())
-      .then(result => { setData(result); setLoading(false); })
-      .catch(err => { console.error(err); setLoading(false); });
+      .then(result => { setHistory(Array.isArray(result) ? result : []); setHistoryLoading(false); })
+      .catch(() => setHistoryLoading(false));
   }, []);
 
-  if (loading) return (
+  // Show spinner only while loading AND no current data available yet
+  if (!data && historyLoading) return (
     <div className={styles.emptyState}>
       <div className={styles.emptyIcon}>⏳</div>
-      <h2 className={styles.emptyTitle}>Loading...</h2>
+      <h2 className={styles.emptyTitle}>{t('loading')}</h2>
     </div>
   );
-  if (!data || !Array.isArray(data) || data.length === 0) return (
+  // No current data → prompt upload
+  if (!data) return (
     <div className={styles.emptyState}>
       <div className={styles.emptyIcon}>💊</div>
-      <h2 className={styles.emptyTitle}>No Data Available</h2>
-      <button onClick={() => navigate('/medication/upload')} className={styles.uploadButton}>Upload Data</button>
+      <h2 className={styles.emptyTitle}>{t('noDataAvailable')}</h2>
+      <button onClick={() => navigate('/medication/upload')} className={styles.uploadButton}>{t('uploadData')}</button>
     </div>
   );
 
-  const sorted  = sortQuarters(data);
-  const current = sorted[sorted.length - 1];
+  // ── Current quarter comes from the data prop (full statistics snapshot) ────
+  const stats          = data.statistics || {};
+  const summary        = stats.summary   || {};
+  const currentQuarter = data.quarter    || '';
+  const currentYear    = String(data.year || '');
+  const totalErrors    = summary.total_errors || 0;
+  const errorRate      = summary.error_rate   || 0;
+  const totalDoses     = summary.total_doses  || 0;
 
   // ── Flat distributions ─────────────────────────────────────────────────────
   // Support both old format (flat {key:count}) and new format ({counts:{...}})
   const counts = (field) => (field && typeof field === 'object' && field.counts ? field.counts : field) || {};
 
-  const cycleData = Object.entries(counts(current.error_cycle))
+  const cycleData = Object.entries(counts(stats.error_cycle))
     .map(([name, value]) => ({ name, value: Number(value) }))
     .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
 
-  const detectedData = Object.entries(counts(current.detected_by))
+  const detectedData = Object.entries(counts(stats.detected_by))
     .map(([name, value]) => ({ name, value: Number(value) }))
     .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
 
-  const shiftData = Object.entries(counts(current.duty_shift))
+  const shiftData = Object.entries(counts(stats.duty_shift))
     .map(([name, value]) => ({ name, value: Number(value) }))
     .filter(d => d.value > 0);
 
-  const staffData = Object.entries(counts(current.staff_involved))
+  const staffData = Object.entries(counts(stats.staff_involved))
     .map(([name, value]) => ({ name, value: Number(value) }))
     .filter(d => d.value > 0).sort((a, b) => b.value - a.value);
 
-  const deptData = Object.entries(counts(current.departments))
+  const deptData = Object.entries(counts(stats.departments))
     .map(([dept, count]) => ({ dept, count: Number(count) }))
     .filter(d => d.count > 0).sort((a, b) => b.count - a.count);
   const totalDeptErrors = deptData.reduce((s, d) => s + d.count, 0);
 
-  const causesData = Object.entries(counts(current.error_causes))
+  const causesData = Object.entries(counts(stats.error_causes))
     .map(([cause, count]) => ({ cause, count: Number(count) }))
     .filter(d => d.count > 0).sort((a, b) => b.count - a.count);
   const totalCauses = causesData.reduce((s, d) => s + d.count, 0);
@@ -505,9 +517,8 @@ function MedicationDashboard({ language }) {
   });
 
   // ── Heatmaps ───────────────────────────────────────────────────────────────
-  // Use real cross-tab from backend if available; otherwise approximate
-  const cycleCauseRaw = current.heatmap_cycle_cause;
-  const causeCycleRaw = current.heatmap_cause_cycle;
+  const cycleCauseRaw = stats.heatmap_cycle_cause;
+  const causeCycleRaw = stats.heatmap_cause_cycle;
 
   const cycleDict = Object.fromEntries(cycleData.map(d => [d.name, d.value]));
   const causeDict = Object.fromEntries(causesData.map(d => [d.cause, d.count]));
@@ -520,10 +531,19 @@ function MedicationDashboard({ language }) {
     ? { matrix: causeCycleRaw, rows: Object.keys(causeCycleRaw), cols: Array.from(new Set(Object.values(causeCycleRaw).flatMap(Object.keys))) }
     : buildCrossTab(causeDict, cycleDict);
 
-  // ── Trend data (ALL quarters) ──────────────────────────────────────────────
-  const trendData = sorted.map(q => ({
-    label: `${q.quarter} ${q.year}`,
-    rate: q.error_rate,
+  // ── Trend data: lean history + current quarter ─────────────────────────────
+  const sortedHistory = sortQuarters(history);
+  // Append current quarter if not already in history
+  const alreadyInHistory = sortedHistory.some(
+    q => q.quarter === currentQuarter && String(q.year) === currentYear
+  );
+  const trendQuarters = alreadyInHistory
+    ? sortedHistory
+    : sortQuarters([...sortedHistory, { quarter: currentQuarter, year: currentYear, error_rate: errorRate, total_errors: totalErrors, total_doses: totalDoses }]);
+
+  const trendData = trendQuarters.map(q => ({
+    label:  `${q.quarter} ${q.year}`,
+    rate:   q.error_rate,
     errors: q.total_errors,
     target: TARGET,
   }));
@@ -542,55 +562,55 @@ function MedicationDashboard({ language }) {
               <div style={{ width: 44, height: 44, borderRadius: 12, background: BLUE_LIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>💊</div>
               <div>
                 <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                  {ar ? 'لوحة بيانات أخطاء الدواء' : 'Medication Error Dashboard'}
+                  {t('medDashboardTitle')}
                 </h1>
                 <p style={{ margin: 0, fontSize: 13, color: SLATE, marginTop: 2 }}>
-                  {ar ? 'نظرة عامة على الأداء' : 'Quarterly performance overview & trend analysis'}
+                  {t('medDashboardSubtitle')}
                 </p>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: BLUE, background: BLUE_LIGHT, padding: '6px 14px', borderRadius: 10 }}>
-                {current.quarter} {current.year}
+                {currentQuarter} {currentYear}
               </div>
-              <div style={{ fontSize: 11, color: SLATE, marginTop: 4 }}>Current Quarter</div>
+              <div style={{ fontSize: 11, color: SLATE, marginTop: 4 }}>{t('currentQuarter')}</div>
             </div>
           </div>
         </div>
 
         {/* ═══ SECTION 1 — KPIs ═══ */}
-        <Section title={ar ? 'مؤشرات الأداء الرئيسية' : 'Key Performance Indicators'} icon="📊">
+        <Section title={t('kpiTitle')} icon="📊">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, direction: 'ltr' }}>
-            <KpiCard icon="💊" label={ar ? 'إجمالي الأخطاء' : 'Total Errors'} value={current.total_errors.toLocaleString()}
-              badge={`Q${Q_ORDER[current.quarter] || '?'} ${current.year}`} />
-            <KpiCard icon="📈" label={ar ? 'نسبة الخطأ' : 'Error Rate'} value={`${current.error_rate.toFixed(4)}%`}
-              valueColor={current.error_rate > TARGET ? RED : GREEN}
-              badge={current.error_rate > TARGET ? '▲ Above Target' : '▼ Below Target'}
-              badgeColor={current.error_rate > TARGET ? '#dc2626' : '#16a34a'}
-              badgeBg={current.error_rate > TARGET ? '#fef2f2' : '#f0fdf4'} />
-            <KpiCard icon="💉" label={ar ? 'إجمالي الجرعات' : 'Total Doses'} value={current.total_doses.toLocaleString()} sub="Administered this quarter" />
-            <KpiCard icon="🎯" label={ar ? 'المستهدف' : 'Target Rate'} value={`${TARGET}%`} badge="Clinical Standard" badgeColor={AMBER} badgeBg="#fffbeb" />
+            <KpiCard icon="💊" label={t('totalErrors')} value={totalErrors.toLocaleString()}
+              badge={`Q${Q_ORDER[currentQuarter] || '?'} ${currentYear}`} />
+            <KpiCard icon="📈" label={t('errorRate')} value={`${errorRate.toFixed(4)}%`}
+              valueColor={errorRate > TARGET ? RED : GREEN}
+              badge={errorRate > TARGET ? '▲ Above Target' : '▼ Below Target'}
+              badgeColor={errorRate > TARGET ? '#dc2626' : '#16a34a'}
+              badgeBg={errorRate > TARGET ? '#fef2f2' : '#f0fdf4'} />
+            <KpiCard icon="💉" label={t('totalDoses')} value={totalDoses.toLocaleString()} sub="Administered this quarter" />
+            <KpiCard icon="🎯" label={t('targetRate')} value={`${TARGET}%`} badge="Clinical Standard" badgeColor={AMBER} badgeBg="#fffbeb" />
           </div>
         </Section>
 
         {/* ═══ SECTION 2 — CURRENT QUARTER PERFORMANCE ═══ */}
-        <Section title={ar ? 'أداء الربع الحالي' : 'Current Quarter Performance'} icon="🎯">
+        <Section title={t('currentQuarterPerformance')} icon="🎯">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, direction: 'ltr' }}>
             <Card>
-              <CardHeader title={ar ? 'مقياس الأداء' : 'Performance Gauge'} badge={`Target: ${TARGET}%`} />
+              <CardHeader title={t('performanceGauge')} badge={`Target: ${TARGET}%`} />
               <CardBody>
-                <MedicationGauge rate={current.error_rate} target={TARGET} />
+                <MedicationGauge rate={errorRate} target={TARGET} />
               </CardBody>
             </Card>
             <Card>
-              <CardHeader title={ar ? 'اتجاه نسبة الخطأ مقابل الهدف' : 'Error Rate vs Target — All Quarters'} />
+              <CardHeader title={t('errorRateVsTarget')} />
               <CardBody style={{ padding: '12px 8px 8px' }}>
                 <div dir="ltr">
                   <ResponsiveContainer width="100%" height={320}>
                     <LineChart data={trendData} margin={{ top: 24, right: 16, left: 0, bottom: 44 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                       <XAxis dataKey="label" interval={0} angle={-30} textAnchor="end" height={60} tick={{ fontSize: 10, fill: '#64748b' }} />
-                      <YAxis hide domain={[0, Math.max(...sorted.map(q => q.error_rate), TARGET) * 1.4]} />
+                      <YAxis hide domain={[0, Math.max(...trendQuarters.map(q => q.error_rate), TARGET) * 1.4]} />
                       <Tooltip {...TS} formatter={v => [`${v.toFixed(4)}%`]} />
                       <Legend verticalAlign="top" height={28} />
                       <Line type="monotone" dataKey="rate" name="Actual" stroke={BLUE} strokeWidth={2.5}
@@ -606,10 +626,10 @@ function MedicationDashboard({ language }) {
         </Section>
 
         {/* ═══ SECTION 3 — CAUSE DISTRIBUTION ═══ */}
-        <Section title={ar ? 'توزيع أسباب الأخطاء' : 'Error Cause Distribution'} icon="🔎">
+        <Section title={t('causeDistributionTitle')} icon="🔎">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, direction: 'ltr' }}>
             <Card>
-              <CardHeader title={ar ? 'توزيع أسباب الأخطاء' : 'Cause of Error — Distribution'} badge={`${causesData.length} causes`} />
+              <CardHeader title={t('causeOfErrorDistribution')} badge={`${causesData.length} causes`} />
               <CardBody>
                 {causesData.length === 0
                   ? <div style={{ color: SLATE }}>No cause data available</div>
@@ -617,7 +637,7 @@ function MedicationDashboard({ language }) {
               </CardBody>
             </Card>
             <Card>
-              <CardHeader title={ar ? 'تحليل باريتو — أسباب الأخطاء' : 'Pareto Analysis — Error Causes'} badge="80/20 Rule" />
+              <CardHeader title={t('paretoAnalysis')} badge="80/20 Rule" />
               <CardBody style={{ padding: '12px 8px 8px' }}>
                 {paretoData.length === 0
                   ? <div style={{ color: SLATE }}>No data available</div>
@@ -643,10 +663,10 @@ function MedicationDashboard({ language }) {
         </Section>
 
         {/* ═══ SECTION 4 — HEATMAPS ═══ */}
-        <Section title={ar ? 'تحليل المصفوفة الحرارية' : 'Cross-Analysis Heatmaps'} icon="🌡️">
+        <Section title={t('crossAnalysisHeatmaps')} icon="🌡️">
 
           {/* Approximation notice when no real cross-tab from backend */}
-          {!current.heatmap_cycle_cause && (
+          {!cycleCauseRaw && (
             <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 12, color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <span style={{ flexShrink: 0 }}>⚠️</span>
               <span>
@@ -657,49 +677,49 @@ function MedicationDashboard({ language }) {
           )}
 
           <Card style={{ marginBottom: 16 }}>
-            <CardHeader title={ar ? 'مرحلة العملية × سبب الخطأ' : 'Process Stage × Cause of Error'} badge="Rows = Process | Cols = Cause" />
+            <CardHeader title={t('processStageXCause')} badge="Rows = Process | Cols = Cause" />
             <CardBody style={{ padding: '14px 12px' }}>
               {hm1rows.length === 0
                 ? <div style={{ color: SLATE }}>No data available.</div>
-                : <Heatmap rows={hm1rows} cols={hm1cols} matrix={hm1} rowLabel="Process" colLabel="Cause" />}
+                : <Heatmap rows={hm1rows} cols={hm1cols} matrix={hm1} rowLabel="Process" colLabel="Cause" grandTotal={totalErrors} />}
             </CardBody>
           </Card>
 
           <Card>
-            <CardHeader title={ar ? 'سبب الخطأ × مرحلة العملية' : 'Cause of Error × Process Stage'} badge="Rows = Cause | Cols = Process" />
+            <CardHeader title={t('causeXProcessStage')} badge="Rows = Cause | Cols = Process" />
             <CardBody style={{ padding: '14px 12px' }}>
               {hm2rows.length === 0
                 ? <div style={{ color: SLATE }}>No data available.</div>
-                : <Heatmap rows={hm2rows} cols={hm2cols} matrix={hm2} rowLabel="Cause" colLabel="Process" />}
+                : <Heatmap rows={hm2rows} cols={hm2cols} matrix={hm2} rowLabel="Cause" colLabel="Process" grandTotal={totalErrors} />}
             </CardBody>
           </Card>
         </Section>
 
         {/* ═══ SECTION 5 — ERROR DISTRIBUTION ═══ */}
-        <Section title={ar ? 'توزيع الأخطاء' : 'Error Distribution'} icon="🔍">
+        <Section title={t('errorDistribution')} icon="🔍">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16, direction: 'ltr' }}>
             <Card>
-              <CardHeader title={ar ? 'الأخطاء حسب مرحلة الدورة' : 'Errors by Medication Error Cycle'} badge={`Total: ${current.total_errors}`} />
+              <CardHeader title={t('errorsByMedCycle')} badge={`Total: ${totalErrors}`} />
               <CardBody style={{ padding: '8px 12px 12px' }}>
-                <AdvancedDonut data={cycleData} centerValue={current.total_errors} centerLabel={ar ? 'إجمالي' : 'Total'} />
+                <AdvancedDonut data={cycleData} centerValue={totalErrors} centerLabel={t('medDeptTotal')} />
               </CardBody>
             </Card>
             <Card>
-              <CardHeader title={ar ? 'الأخطاء حسب فترة المناوبة' : 'Errors by Duty Shift'} />
+              <CardHeader title={t('errorsByDutyShift')} />
               <CardBody style={{ padding: '8px 12px 12px' }}>
-                <AdvancedDonut data={shiftData} />
+                <AdvancedDonut data={shiftData} centerValue={shiftData.reduce((s, d) => s + d.value, 0)} centerLabel={t('medDeptTotal')} />
               </CardBody>
             </Card>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, direction: 'ltr' }}>
             <Card>
-              <CardHeader title={ar ? 'طريقة اكتشاف الخطأ' : 'Errors by Detection Method'} />
+              <CardHeader title={t('errorsByDetectionMethod')} />
               <CardBody style={{ padding: '10px 0 8px' }}>
                 <HBarChart data={detectedData} dataKey="value" nameKey="name" color={GREEN} />
               </CardBody>
             </Card>
             <Card>
-              <CardHeader title={ar ? 'الأخطاء حسب الكادر المتسبب' : 'Errors by Staff Involved'} />
+              <CardHeader title={t('errorsByStaffInvolved')} />
               <CardBody style={{ padding: '10px 0 8px' }}>
                 <HBarChart data={staffData} dataKey="value" nameKey="name" color="#8b5cf6" />
               </CardBody>
@@ -708,29 +728,29 @@ function MedicationDashboard({ language }) {
         </Section>
 
         {/* ═══ SECTION 6 — DEPARTMENT ANALYSIS ═══ */}
-        <Section title={ar ? 'تحليل الأقسام' : 'Department Analysis'} icon="🏥">
+        <Section title={t('departmentAnalysis')} icon="🏥">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, direction: 'ltr' }}>
             <Card>
-              <CardHeader title={ar ? 'أعلى 8 أقسام حسب عدد الأخطاء' : 'Top 8 Departments by Errors'} />
+              <CardHeader title={t('top8Departments')} />
               <CardBody style={{ padding: '10px 0 8px' }}>
                 <HBarChart data={deptData.slice(0, 8)} dataKey="count" nameKey="dept" color={BLUE} />
               </CardBody>
             </Card>
             <Card>
-              <CardHeader title={ar ? 'جدول تفصيلي — الأقسام' : 'Department Executive Table'} />
+              <CardHeader title={t('departmentTable')} />
               <div style={{ overflowY: 'auto', maxHeight: 480 }}>
-                <DeptTable deptData={deptData} totalErrors={totalDeptErrors} ar={ar} />
+                <DeptTable deptData={deptData} totalErrors={totalDeptErrors} />
               </div>
             </Card>
           </div>
         </Section>
 
         {/* ═══ SECTION 7 — TREND ANALYSIS ═══ */}
-        <Section title={ar ? 'تحليل الاتجاهات' : 'Trend Analysis'} icon="📈">
+        <Section title={t('trendAnalysis')} icon="📈">
 
           {/* All quarters area trend */}
           <Card style={{ marginBottom: 16 }}>
-            <CardHeader title={ar ? 'تطور عدد الأخطاء — جميع الفصول' : 'Total Errors Trend — All Quarters'} />
+            <CardHeader title={t('totalErrorsTrend')} />
             <CardBody style={{ padding: '12px 8px 8px' }}>
               <div dir="ltr">
                 <ResponsiveContainer width="100%" height={320}>
@@ -757,8 +777,8 @@ function MedicationDashboard({ language }) {
           {/* ALL quarters comparison: bars + rate line */}
           <Card>
             <CardHeader
-              title={ar ? 'مقارنة جميع الفصول' : 'All Quarters Comparison — Errors & Rate'}
-              badge={`${sorted.length} quarters`}
+              title={t('allQuartersComparison')}
+              badge={`${trendQuarters.length} quarters`}
             />
             <CardBody style={{ padding: '12px 8px 8px' }}>
               <div dir="ltr">

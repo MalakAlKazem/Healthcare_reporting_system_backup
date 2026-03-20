@@ -186,7 +186,7 @@ def _line_chart(
 
     # ── Legend & title ────────────────────────────────────────────────────────
     ax.legend(loc='upper right', frameon=False, fontsize=9)
-    ax.set_title(floor_label, fontsize=11, fontweight='bold', pad=10)
+    ax.set_title(floor_label, fontsize=11, fontweight='bold', pad=10, loc='right')
 
     plt.tight_layout()
     return _to_buf(fig)

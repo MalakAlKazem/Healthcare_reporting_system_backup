@@ -10,8 +10,9 @@ FIXES applied:
      treated as boolean presence flags; numeric value falls back to None gracefully
 """
 
-import openpyxl
+import re
 import math
+import openpyxl
 from datetime import datetime, date
 from typing import Optional
 
@@ -109,10 +110,23 @@ def _to_float(value) -> Optional[float]:
         return None
 
 
+def _age_display(age: Optional[float]) -> str:
+    """Convert numeric age (years) to display string: '53Y', '3M', '10D'."""
+    if age is None:
+        return "N/A"
+    if 0 < age < 1:
+        months = round(age * 12)
+        return f"{months}M" if months >= 1 else f"{round(age * 365)}D"
+    return f"{int(age)}Y"
+
+
 def _parse_age(value) -> Optional[float]:
     """
-    Parse age: handles int/float and strings like '1 month', '3 months', '10 days'.
-    Returns age in years.
+    Parse age to numeric years. Handles:
+      • int / float                   → taken as years directly
+      • "53Y" / "53y" / "53 Y"       → 53.0 years
+      • "3M"  / "3m"  / "3 months"   → 0.25 years
+      • "10D" / "10d" / "10 days"     → 0.027 years
     """
     if value is None:
         return None
@@ -123,15 +137,29 @@ def _parse_age(value) -> Optional[float]:
         except (TypeError, ValueError):
             return None
         return float(value)
-    s = str(value).strip().lower()
-    if "month" in s:
+    s = str(value).strip()
+    sl = s.lower()
+    # Single-letter suffix: 53Y / 3M / 10D
+    m = re.match(r'^(\d+(?:\.\d+)?)\s*([ymd])$', sl)
+    if m:
+        num, unit = float(m.group(1)), m.group(2)
+        if unit == 'y': return num
+        if unit == 'm': return round(num / 12, 4)
+        if unit == 'd': return round(num / 365, 4)
+    # Word form: "3 months", "10 days"
+    if 'month' in sl:
         try:
-            return round(float(s.split()[0]) / 12, 2)
+            return round(float(sl.split()[0]) / 12, 4)
         except (ValueError, IndexError):
             return None
-    if "day" in s:
+    if 'day' in sl:
         try:
-            return round(float(s.split()[0]) / 365, 2)
+            return round(float(sl.split()[0]) / 365, 4)
+        except (ValueError, IndexError):
+            return None
+    if 'year' in sl:
+        try:
+            return float(sl.split()[0])
         except (ValueError, IndexError):
             return None
     try:
@@ -258,13 +286,15 @@ def process_vap_sheet(filepath: str,
         los_raw = get(r, "length_of_stay")
         dov_raw = get(r, "duration_of_ventilation")
 
+        age_val = _parse_age(get(r, "age"))
         case = {
             "case_number":                  get(r, "case_number"),
             "nb_of_cases":                  get(r, "nb_of_cases"),
             "year":                         get(r, "year"),
             "semester":                     get(r, "semester"),
             "floor":                        get(r, "floor"),
-            "age":                          _parse_age(get(r, "age")),
+            "age":                          age_val,
+            "age_display":                  _age_display(age_val),
             "gender":                       get(r, "gender"),
             "diagnosis":                    get(r, "diagnosis"),
             "germs":                        get(r, "germs"),

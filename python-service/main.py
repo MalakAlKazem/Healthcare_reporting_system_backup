@@ -1,6 +1,6 @@
 """
-Healthcare Mortality Analysis - Python Service
-FastAPI application for data processing
+Healthcare Quality Indicators - Python Service
+FastAPI application covering Mortality, Medication Error, VAP, CLABSI, CAUTI
 """
 
 import uvicorn
@@ -11,10 +11,11 @@ import sys
 import os
 
 # Import API routes
-from app.api.routes import router
+from app.api.mortality_routes import router as mortality_router
 from app.api.medication_routes import router as medication_router
 from app.api.vap_routes import router as vap_router
 from app.api.clabsi_routes import router as clabsi_router
+from app.api.cauti_routes import router as cauti_router
 
 # Configure logging
 logger.remove()
@@ -35,9 +36,9 @@ logger.add(
 
 # Create FastAPI app
 app = FastAPI(
-    title="Mortality Analysis API",
-    description="Data processing and statistics service",
-    version="1.0.0",
+    title="Healthcare Quality Indicators API",
+    description="Data processing and report generation for Mortality, Medication Error, VAP, CLABSI, CAUTI",
+    version="2.0.0",
     docs_url="/docs"
 )
 
@@ -51,10 +52,11 @@ app.add_middleware(
 )
 
 # Include API routes
-app.include_router(router, prefix="/api")
+app.include_router(mortality_router, prefix="/api")
 app.include_router(medication_router, prefix="/api/medication")
 app.include_router(vap_router)          # prefix "/api/vap" already set in the router
 app.include_router(clabsi_router)       # prefix "/api/clabsi" already set in the router
+app.include_router(cauti_router)        # prefix "/api/cauti" already set in the router
 
 
 @app.get("/health")
@@ -62,35 +64,42 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "service": "python-data-processor",
-        "version": "1.0.0",
-        "ai_enabled": False  # Phase 1
+        "service": "healthcare-quality-indicators",
+        "version": "2.0.0",
+        "modules": ["mortality", "medication", "vap", "clabsi", "cauti"],
     }
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize service"""
-    logger.info("="*60)
-    logger.info("🏥 Healthcare Mortality Analysis - Python Service")
-    logger.info("="*60)
-    logger.info("📊 Phase 1: AI Disabled (Placeholder Text)")
-    logger.info("🔧 Environment: development")
-    
+    logger.info("=" * 60)
+    logger.info("Healthcare Quality Indicators — Python Service v2.0")
+    logger.info("=" * 60)
+    logger.info("Modules loaded: Mortality | Medication | VAP | CLABSI | CAUTI")
+
+    # Check AI availability
+    try:
+        from llama_cpp import Llama  # noqa: F401
+        ai_status = "available (llama-cpp-python installed)"
+    except ImportError:
+        ai_status = "unavailable (llama-cpp-python not installed — static fallback active)"
+    logger.info(f"AI service: {ai_status}")
+
     # Create directories
     os.makedirs("../storage/uploads", exist_ok=True)
     os.makedirs("../storage/charts", exist_ok=True)
     os.makedirs("../storage/temp", exist_ok=True)
-    
-    logger.success("✅ Python service ready on port 8000")
-    logger.info("📖 API Docs: http://localhost:8000/docs")
-    logger.info("="*60)
+
+    logger.success("Service ready on http://localhost:8000")
+    logger.info("API Docs: http://localhost:8000/docs")
+    logger.info("=" * 60)
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup"""
-    logger.info("👋 Shutting down Python service")
+    logger.info("Shutting down Healthcare Quality Indicators service")
 
 
 if __name__ == "__main__":

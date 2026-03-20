@@ -1,16 +1,15 @@
 """
-CLABSI Excel Processor
+CAUTI Excel Processor
 
 Mirrors the VAP processor design:
   - Uses openpyxl (not pandas)
-  - Normalises all column headers (strip + lowercase + collapse whitespace/newlines)
-    so "Date of  insertion\\nCentral line" → "date of insertion central line"
+  - Normalises all column headers (strip + lowercase + collapse whitespace)
   - Returns a list of clean, normalized case dicts (one dict = one infection case)
   - Does NOT compute rates — that is done by InfectionControlStatistics
 
 Usage:
-    result = process_clabsi_excel(file_path, year, quarter, denominators)
-    cases  = result["cases"]   # list of normalized dicts
+    result = process_cauti_excel(file_path, year, quarter, denominators)
+    cases  = result["cases"]
 """
 
 import re
@@ -21,9 +20,6 @@ from typing import Dict, List, Optional
 
 
 # ── Column normalization map ──────────────────────────────────────────────────
-# Keys: normalized (strip, lowercase, collapse all whitespace including \n)
-# The normalization step converts:
-#   "Date of  insertion\nCentral line" → "date of insertion central line"
 COL_MAP: Dict[str, str] = {
     "year":                            "year",
     "semester":                        "semester",
@@ -33,10 +29,9 @@ COL_MAP: Dict[str, str] = {
     "age/year":                        "age",
     "diagnosis":                       "diagnosis",
     "date of admission":               "date_of_admission",
-    "date of insertion central line":  "date_of_insertion",
+    "date of foley insertion":         "date_of_insertion",   # CAUTI-specific
     "date of infection":               "date_of_infection",
     "germs":                           "germs",
-    "type of line":                    "type_of_line",
     "gender":                          "gender",
     "diabetic":                        "diabetic",
     "hypertension":                    "hypertension",
@@ -64,17 +59,15 @@ RISK_FACTOR_COLS = [
 ]
 
 
-# ── Helpers (same pattern as VAP processor) ───────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _normalize_col(name) -> str:
-    """Strip, lowercase, collapse ALL whitespace (handles newlines & double spaces)."""
     if name is None:
         return ""
     return " ".join(str(name).strip().lower().split())
 
 
 def _safe(value):
-    """Return None for NaN/None, else the value."""
     if value is None:
         return None
     try:
@@ -162,7 +155,6 @@ def _days_between(d1, d2) -> Optional[int]:
 
 
 def _yes_no(value) -> bool:
-    """Convert Excel Yes/No strings (and booleans) to Python bool."""
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
@@ -174,36 +166,29 @@ def _yes_no(value) -> bool:
 
 # ── Main processor ────────────────────────────────────────────────────────────
 
-def process_clabsi_excel(file_path: str, year: int, quarter: int, denominators: dict) -> dict:
+def process_cauti_excel(file_path: str, year: int, quarter: int, denominators: dict,
+                        sheet_name=None) -> dict:
     """
-    Read the CLABSI Excel file and return normalized case dicts.
-
-    Parameters
-    ----------
-    file_path    : Path to .xlsx file
-    year         : Quarter year (used as fallback if not in sheet)
-    quarter      : Quarter number 1–4
-    denominators : {floor: catheter_days} — passed through for route use
+    Read the CAUTI Excel file and return normalized case dicts.
 
     Returns
     -------
     {'cases': [normalized_case_dict, ...], 'denominators': denominators}
-
-    Rate calculation is done by InfectionControlStatistics, not here.
     """
     wb = openpyxl.load_workbook(file_path, data_only=True)
 
-    # Find the CLABSI sheet (flexible matching)
     sheet = None
-    for name in wb.sheetnames:
-        n = name.strip().upper()
-        if "CLABSI" in n or n in ("SHEET1", "SHEET 1", "DATA", "CASES"):
-            sheet = wb[name]
-            break
-    if sheet is None:
-        sheet = wb.active
+    if sheet_name is not None:
+        sheet = wb[sheet_name]
+    else:
+        for name in wb.sheetnames:
+            n = name.strip().upper()
+            if "CAUTI" in n or n in ("SHEET1", "SHEET 1", "DATA", "CASES"):
+                sheet = wb[name]
+                break
+        if sheet is None:
+            sheet = wb.active
 
-    # Build header → column index using normalized names
     raw_headers = [sheet.cell(1, c).value for c in range(1, sheet.max_column + 1)]
     col_index: Dict[str, int] = {}
     for idx, raw in enumerate(raw_headers, start=1):
@@ -220,7 +205,6 @@ def process_clabsi_excel(file_path: str, year: int, quarter: int, denominators: 
 
     cases: List[Dict] = []
     for r in range(2, sheet.max_row + 1):
-        # Skip fully empty rows
         if all(sheet.cell(r, c).value is None for c in range(1, sheet.max_column + 1)):
             continue
 
@@ -239,7 +223,6 @@ def process_clabsi_excel(file_path: str, year: int, quarter: int, denominators: 
             "gender":            get(r, "gender"),
             "diagnosis":         get(r, "diagnosis"),
             "germs":             get(r, "germs"),
-            "type_of_line":      get(r, "type_of_line"),
             "date_of_admission": str(admission)  if admission  else None,
             "date_of_insertion": str(insertion)  if insertion  else None,
             "date_of_infection": str(infection)  if infection  else None,

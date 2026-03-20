@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import styles from '../styles/Upload.module.css';
+import styles from '../../styles/Upload.module.css';
 
 const API_URL = 'http://localhost:8000/api';
 
@@ -141,9 +141,10 @@ function Upload({ onDataLoaded }) {
               <input
                 type="number"
                 min="2020"
-                max="2030"
+                max={new Date().getFullYear()}
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
+                onWheel={(e) => e.target.blur()}
                 className={styles.inputField}
                 disabled={uploading}
               />
@@ -165,6 +166,7 @@ function Upload({ onDataLoaded }) {
             placeholder={t('totalPatientsPlaceholder', 'أدخل عدد المرضى الإجمالي / Enter total patients')}
             value={totalPatients}
             onChange={(e) => setTotalPatients(e.target.value)}
+            onWheel={(e) => e.target.blur()}
             className={styles.inputField}
             disabled={uploading}
           />

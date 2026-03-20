@@ -1,155 +1,52 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect, Component } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './i18n/config';
 import './App.css';
 
-// Pages
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import Upload from './pages/Upload';
-import Reports from './pages/Reports';
-import MedicationUpload from './pages/MedicationUpload';
-import MedicationDashboard from './pages/MedicationDashboard';
-import MedicationReports from './pages/MedicationReports';
-import VapUpload from './pages/VapUpload';
-import VapDashboard from './pages/VapDashboard';
-import VapReports from './pages/VapReports';
-import ClabsiUpload from './pages/ClabsiUpload';
-import ClabsiDashboard from './pages/ClabsiDashboard';
-
-// ─── Navbar: changes based on current route section ────────────────────────
-function Navbar({ language, toggleLanguage }) {
-  const { t } = useTranslation();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const ar = language === 'ar';
-
-  const isMortality = location.pathname.startsWith('/mortality');
-  const isMedication = location.pathname.startsWith('/medication');
-  const isVap = location.pathname.startsWith('/vap');
-  const isClabsi = location.pathname.startsWith('/clabsi');
-  const isHome = location.pathname === '/';
-
-  return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        {/* Logo & Brand — always links to home */}
-        <button
-          className="navbar-brand"
-          onClick={() => navigate('/')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-        >
-          <div className="logo">
-            <span className="logo-icon">🏥</span>
-          </div>
-          <div className="brand-text">
-            <h1 className="brand-title">
-              {isMortality
-                ? (ar ? 'نظام تحليل معدل الوفيات' : 'Mortality Analysis System')
-                : isMedication
-                  ? (ar ? 'نظام أخطاء الدواء' : 'Medication Error System')
-                  : isVap
-                    ? (ar ? 'نظام مكافحة العدوى' : 'Infection Control System')
-                    : isClabsi
-                      ? (ar ? 'نظام مكافحة العدوى' : 'Infection Control System')
-                      : (ar ? 'نظام التقارير الصحية' : 'Healthcare Reporting System')}
-            </h1>
-            <p className="brand-subtitle">
-              {ar ? 'تحليلات طبية متقدمة' : 'Advanced Medical Analytics'}
-            </p>
-          </div>
-        </button>
-
-        <div className="navbar-menu">
-          {/* Home: no section links */}
-          {isHome && null}
-
-          {/* Mortality section links */}
-          {isMortality && (
-            <>
-              <NavLink to="/mortality/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📊</span>
-                <span>{t('dashboard')}</span>
-              </NavLink>
-              <NavLink to="/mortality/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📤</span>
-                <span>{t('upload')}</span>
-              </NavLink>
-              <NavLink to="/mortality/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📄</span>
-                <span>{t('reports')}</span>
-              </NavLink>
-            </>
-          )}
-
-          {/* VAP / Infection Control section links */}
-          {isVap && (
-            <>
-              <NavLink to="/vap/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📊</span>
-                <span>{ar ? 'لوحة البيانات' : 'Dashboard'}</span>
-              </NavLink>
-              <NavLink to="/vap/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📤</span>
-                <span>{ar ? 'رفع البيانات' : 'Upload'}</span>
-              </NavLink>
-              <NavLink to="/vap/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📄</span>
-                <span>{ar ? 'التقارير' : 'Reports'}</span>
-              </NavLink>
-            </>
-          )}
-
-          {/* CLABSI / Infection Control section links */}
-          {isClabsi && (
-            <>
-              <NavLink to="/clabsi/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📊</span>
-                <span>{ar ? 'لوحة البيانات' : 'Dashboard'}</span>
-              </NavLink>
-              <NavLink to="/clabsi/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📤</span>
-                <span>{ar ? 'رفع البيانات' : 'Upload'}</span>
-              </NavLink>
-            </>
-          )}
-
-          {/* Medication section links */}
-          {isMedication && (
-            <>
-              <NavLink to="/medication/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📊</span>
-                <span>{ar ? 'لوحة البيانات' : 'Dashboard'}</span>
-              </NavLink>
-              <NavLink to="/medication/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📤</span>
-                <span>{ar ? 'رفع البيانات' : 'Upload'}</span>
-              </NavLink>
-              <NavLink to="/medication/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                <span className="nav-icon">📄</span>
-                <span>{ar ? 'التقارير' : 'Reports'}</span>
-              </NavLink>
-            </>
-          )}
-
-          {/* Language Toggle */}
-          <button onClick={toggleLanguage} className="language-toggle">
-            <span className="globe-icon">🌐</span>
-            <span>{language === 'ar' ? 'EN' : 'ع'}</span>
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err) { console.error('Page error:', err); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '3rem', textAlign: 'center', color: '#dc2626' }}>
+          <h2>Something went wrong on this page.</h2>
+          <button onClick={() => this.setState({ hasError: false })}
+            style={{ marginTop: '1rem', padding: '0.5rem 1.5rem', cursor: 'pointer' }}>
+            Try again
           </button>
         </div>
-      </div>
-    </nav>
-  );
+      );
+    }
+    return this.props.children;
+  }
 }
+
+import Navbar from './components/Navbar';
+
+// Pages
+import Home from './pages/Home';
+import Dashboard from './pages/mortality/Dashboard';
+import Upload from './pages/mortality/Upload';
+import Reports from './pages/mortality/Reports';
+import MedicationUpload from './pages/medication/Upload';
+import MedicationDashboard from './pages/medication/Dashboard';
+import MedicationReports from './pages/medication/Reports';
+import InfectionControlUpload from './pages/infection_control/Upload';
+import InfectionControlReports from './pages/infection_control/Reports';
+import VapDashboard from './pages/infection_control/vap/Dashboard';
+import ClabsiDashboard from './pages/infection_control/clabsi/Dashboard';
+import CautiDashboard from './pages/infection_control/cauti/Dashboard';
 
 // ─── Main App ───────────────────────────────────────────────────────────────
 function App() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [language, setLanguage] = useState('ar');
   const [mortalityData, setMortalityData] = useState(null);
   const [historyData, setHistoryData] = useState([]);
+  const [medicationData, setMedicationData] = useState(null);
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
@@ -162,6 +59,20 @@ function App() {
       .then(res => res.json())
       .then(data => setHistoryData(data))
       .catch(err => console.error('Failed to load history:', err));
+  }, []);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/current')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setMortalityData(data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/medication/current')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setMedicationData(data); })
+      .catch(() => {});
   }, []);
 
   const toggleLanguage = () => {
@@ -177,6 +88,7 @@ function App() {
 
         <main className="main-content">
           <div className="content-wrapper">
+            <ErrorBoundary>
             <Routes>
               {/* ── Home: system selector ── */}
               <Route path="/" element={<Home language={language} />} />
@@ -198,36 +110,41 @@ function App() {
                 <Reports data={mortalityData} language={language} />
               } />
 
-              {/* ── Infection Control / VAP system ── */}
-              <Route path="/vap/upload" element={<VapUpload language={language} />} />
-              <Route path="/vap/dashboard" element={<VapDashboard language={language} />} />
-              <Route path="/vap/reports" element={<VapReports language={language} />} />
+              {/* ── Infection Control / VAP ── */}
+              <Route path="/vap/upload"     element={<InfectionControlUpload defaultTab="vap" language={language} />} />
+              <Route path="/vap/dashboard"  element={<VapDashboard language={language} />} />
+              <Route path="/vap/reports"    element={<InfectionControlReports type="vap" language={language} />} />
 
-              {/* ── Infection Control / CLABSI system ── */}
-              <Route path="/clabsi/upload" element={<ClabsiUpload language={language} />} />
+              {/* ── Infection Control / CLABSI ── */}
+              <Route path="/clabsi/upload"    element={<InfectionControlUpload defaultTab="clabsi" language={language} />} />
               <Route path="/clabsi/dashboard" element={<ClabsiDashboard language={language} />} />
+              <Route path="/clabsi/reports"   element={<InfectionControlReports type="clabsi" language={language} />} />
+
+              {/* ── Infection Control / CAUTI ── */}
+              <Route path="/cauti/upload"    element={<InfectionControlUpload defaultTab="cauti" language={language} />} />
+              <Route path="/cauti/dashboard" element={<CautiDashboard language={language} />} />
+              <Route path="/cauti/reports"   element={<InfectionControlReports type="cauti" language={language} />} />
 
               {/* ── Medication Error system ── */}
               <Route path="/medication/upload" element={
-                  <MedicationUpload language={language} />
+                  <MedicationUpload language={language} onDataLoaded={setMedicationData} />
                 } />
 
                 <Route path="/medication/dashboard" element={
-                  <MedicationDashboard language={language} />
+                  <MedicationDashboard language={language} data={medicationData} />
                 } />
 
                 <Route path="/medication/reports" element={
-                  <MedicationReports language={language} />
+                  <MedicationReports language={language} currentData={medicationData} />
                 } />
               </Routes>
+            </ErrorBoundary>
           </div>
         </main>
 
         <footer className="footer">
           <p className="footer-text">
-            {language === 'ar'
-              ? '© 2026 نظام التقارير الصحية الذكي. جميع الحقوق محفوظة.'
-              : '© 2026 Smart Healthcare Reporting System. All rights reserved.'}
+            {t('footerText')}
           </p>
         </footer>
       </div>

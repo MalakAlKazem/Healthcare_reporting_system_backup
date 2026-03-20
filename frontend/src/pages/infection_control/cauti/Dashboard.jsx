@@ -9,14 +9,15 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend
+  Legend,
 } from "recharts";
 
-const API_URL = "http://localhost:8000/api/clabsi";
+const API_URL = "http://localhost:8000/api/cauti";
 
 const GREEN  = "#16a34a";
 const RED    = "#dc2626";
 const AMBER  = "#f59e0b";
+const ORANGE = "#ea580c";
 const BORDER = "#e5e7eb";
 const SLATE  = "#64748b";
 
@@ -27,8 +28,8 @@ const TS = {
     borderRadius: "10px",
     padding: "10px 14px",
     boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-    fontSize: "12px"
-  }
+    fontSize: "12px",
+  },
 };
 
 const thStyle = {
@@ -36,12 +37,12 @@ const thStyle = {
   textAlign: "left",
   fontWeight: 600,
   color: "#334155",
-  borderBottom: "1px solid #e2e8f0"
+  borderBottom: "1px solid #e2e8f0",
 };
 
 const tdStyle = {
   padding: "10px",
-  borderBottom: "1px solid #e2e8f0"
+  borderBottom: "1px solid #e2e8f0",
 };
 
 const QUARTER_KEY_MAP = {
@@ -96,9 +97,9 @@ function DepartmentGauge({ name, rate, target }) {
       </div>
       <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 16, fontSize: 12, color: SLATE }}>
         {[
-          { label: t("vapActual"),                              value: `${rate.toFixed(2)}‰`, color: isAbove ? RED : GREEN },
-          { label: t("vapTargetLabel"),                         value: `${target}‰`,          color: AMBER },
-          { label: isAbove ? t("vapOver") : t("vapUnder"),     value: `${Math.abs(rate - target).toFixed(2)}‰`, color: isAbove ? RED : GREEN },
+          { label: t("vapActual"),                            value: `${rate.toFixed(2)}‰`, color: isAbove ? RED : GREEN },
+          { label: t("vapTargetLabel"),                       value: `${target}‰`,          color: AMBER },
+          { label: isAbove ? t("vapOver") : t("vapUnder"),   value: `${Math.abs(rate - target).toFixed(2)}‰`, color: isAbove ? RED : GREEN },
         ].map((item, i, arr) => (
           <React.Fragment key={item.label}>
             <div style={{ textAlign: "center" }}>
@@ -114,7 +115,7 @@ function DepartmentGauge({ name, rate, target }) {
 }
 
 /* ── Dashboard ── */
-function ClabsiDashboard() {
+function CautiDashboard() {
   const { t } = useTranslation();
   const [history,     setHistory]     = useState([]);
   const [currentData, setCurrentData] = useState(null);
@@ -133,16 +134,21 @@ function ClabsiDashboard() {
         setCurrentData(cur);
         setLoading(false);
       })
-      .catch(err => { console.error("Dashboard error:", err); setLoading(false); });
+      .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className={styles.emptyState}>{t("clabsiLoadingText")}</div>;
+  if (loading) return <div className={styles.emptyState}>{t("cautiLoadingText")}</div>;
 
   const latestHistory = (currentData?.quarter && currentData?.year)
     ? (history.find(h => h.quarter === currentData.quarter && String(h.year) === String(currentData.year)) || history[history.length - 1])
     : history[history.length - 1];
   if (!latestHistory?.summary) {
-    return <div className={styles.emptyState}><h2>{t("clabsiNoData")}</h2></div>;
+    return (
+      <div className={styles.emptyState}>
+        <h2>{t("cautiNoData")}</h2>
+        <p>{t("cautiNoDataDesc")}</p>
+      </div>
+    );
   }
 
   const normalize = g => g?.toLowerCase().trim();
@@ -153,11 +159,11 @@ function ClabsiDashboard() {
       {/* ── Page Header ── */}
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.pageTitle}>{t("clabsiDashboardTitle")}</h1>
-          <p className={styles.pageSubtitle}>{t("clabsiDashboardSubtitle")}</p>
+          <h1 className={styles.pageTitle}>{t("cautiDashboardTitle")}</h1>
+          <p className={styles.pageSubtitle}>{t("cautiDashboardSubtitle")}</p>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#1e3a8a", background: "#dbeafe", padding: "6px 14px", borderRadius: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#c2410c", background: "#ffedd5", padding: "6px 14px", borderRadius: 10 }}>
             {qLabel(latestHistory.quarter, latestHistory.year, t)}
           </div>
           <div style={{ fontSize: 11, color: SLATE, marginTop: 4 }}>{t("currentQuarter")}</div>
@@ -166,8 +172,8 @@ function ClabsiDashboard() {
 
       {/* ── Quarterly Performance Table ── */}
       <div style={{ background: "#ffffff", borderRadius: "14px", boxShadow: "0 6px 18px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-        <div style={{ padding: "1rem 1.5rem", background: "linear-gradient(to right, #dbeafe, #ffffff)", borderBottom: "1px solid #e2e8f0" }}>
-          <h3 style={{ margin: 0, color: "#1e3a8a" }}>{t("clabsiQuarterlyPerformance")}</h3>
+        <div style={{ padding: "1rem 1.5rem", background: "linear-gradient(to right, #ffedd5, #ffffff)", borderBottom: "1px solid #e2e8f0" }}>
+          <h3 style={{ margin: 0, color: "#7c2d12" }}>{t("cautiQuarterlyPerformance")}</h3>
         </div>
 
         <div style={{ overflowX: "auto" }}>
@@ -195,13 +201,15 @@ function ClabsiDashboard() {
                     </div>
                   </td>
                   {history.map((q, colIndex) => {
-                    const summary    = q.summary?.[dept];
-                    const cases      = summary?.cases ?? null;
-                    const days       = summary?.catheter_days ?? null;
-                    const rate       = summary?.rate ?? null;
-                    const isAbove    = rate !== null && rate > targets[dept];
-                    const prevRate   = colIndex > 0 ? history[colIndex - 1].summary?.[dept]?.rate ?? null : null;
-                    const trendArrow = prevRate !== null && rate !== null ? (rate > prevRate ? " ↑" : rate < prevRate ? " ↓" : "") : "";
+                    const summary  = q.summary?.[dept];
+                    const cases    = summary?.cases ?? null;
+                    const days     = summary?.urinary_catheter_days ?? null;
+                    const rate     = summary?.rate ?? null;
+                    const isAbove  = rate !== null && rate > targets[dept];
+                    const prevRate = colIndex > 0 ? history[colIndex - 1].summary?.[dept]?.rate ?? null : null;
+                    const trend    = prevRate !== null && rate !== null
+                      ? (rate > prevRate ? " ↑" : rate < prevRate ? " ↓" : "")
+                      : "";
                     return (
                       <td key={colIndex} style={{ ...tdStyle, textAlign: "center", background: isAbove ? "#fee2e2" : "transparent", color: isAbove ? "#b91c1c" : "#0f172a" }}>
                         {rate !== null ? (
@@ -210,7 +218,7 @@ function ClabsiDashboard() {
                               <span style={{ fontWeight: 700 }}>{cases ?? "—"}</span>
                               <span style={{ color: "#64748b" }}> / {days ?? "—"}</span>
                             </div>
-                            <div style={{ fontSize: 12, fontWeight: 600 }}>{rate}‰{trendArrow}</div>
+                            <div style={{ fontSize: 12, fontWeight: 600 }}>{rate}‰{trend}</div>
                           </>
                         ) : "—"}
                       </td>
@@ -290,8 +298,8 @@ function ClabsiDashboard() {
 
           const getColor = (pct, qk) => {
             const n = pct / maxPercent;
-            const s = { r: 219, g: 234, b: 254 };
-            const e = { r: 30,  g: 64,  b: 175 };
+            const s = { r: 254, g: 237, b: 213 };
+            const e = { r: 124, g: 45,  b: 18  };
             let r = Math.round(s.r + (e.r - s.r) * n);
             let g = Math.round(s.g + (e.g - s.g) * n);
             let b = Math.round(s.b + (e.b - s.b) * n);
@@ -302,7 +310,7 @@ function ClabsiDashboard() {
           return (
             <div key={dept} style={{ marginBottom: "4rem", background: "#ffffff", borderRadius: "16px", boxShadow: "0 6px 20px rgba(0,0,0,0.05)", padding: "2rem" }}>
 
-              <h2 style={{ marginBottom: "2rem", color: "#1e3a8a" }}>
+              <h2 style={{ marginBottom: "2rem", color: "#7c2d12" }}>
                 {dept} — {qLabel(latestHistory.quarter, latestHistory.year, t)}
               </h2>
 
@@ -312,7 +320,7 @@ function ClabsiDashboard() {
 
                 <div style={{ background: "white", borderRadius: 20, padding: 20, boxShadow: "0 8px 25px rgba(0,0,0,0.05)" }}>
                   <h3 style={{ marginBottom: 16 }}>
-                    {t("clabsiQuarterlyRateVsTarget")}
+                    {t("cautiQuarterlyRateVsTarget")}
                     <span style={{ color: RED, fontWeight: 600 }}> ({targets[dept]}‰)</span>
                   </h3>
                   <ResponsiveContainer width="100%" height={300}>
@@ -322,8 +330,8 @@ function ClabsiDashboard() {
                       <YAxis hide />
                       <Tooltip {...TS} formatter={(v, n) => [`${v.toFixed(2)}‰`, n === "rate" ? t("vapActual") : t("vapTargetLabel")]} />
                       <Legend verticalAlign="top" height={30} />
-                      <Line type="monotone" dataKey="rate" name={t("vapActualRate")} stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: "#2563eb" }}
-                        label={{ position: "top", fontSize: 10, fontWeight: 700, fill: "#2563eb", formatter: v => `${v.toFixed(1)}‰` }} />
+                      <Line type="monotone" dataKey="rate" name={t("vapActualRate")} stroke={ORANGE} strokeWidth={2.5} dot={{ r: 4, fill: ORANGE }}
+                        label={{ position: "top", fontSize: 10, fontWeight: 700, fill: ORANGE, formatter: v => `${v.toFixed(1)}‰` }} />
                       <Line type="monotone" dataKey="target" name={t("vapTargetLabel")} stroke={RED} strokeDasharray="6 3" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -333,7 +341,7 @@ function ClabsiDashboard() {
               {/* Germ Heatmap */}
               {topGerms.length > 0 && (
                 <div style={{ marginBottom: "2rem" }}>
-                  <h3 style={{ marginBottom: 16 }}>{t("germDistributionHeatmapClabsi")}</h3>
+                  <h3 style={{ marginBottom: 16 }}>{t("germDistributionHeatmap")}</h3>
                   <div style={{ overflowX: "auto" }}>
                     <div style={{ display: "grid", gridTemplateColumns: `200px repeat(${quarterKeys.length}, 1fr)`, gap: 6 }}>
                       <div />
@@ -366,4 +374,4 @@ function ClabsiDashboard() {
   );
 }
 
-export default ClabsiDashboard;
+export default CautiDashboard;

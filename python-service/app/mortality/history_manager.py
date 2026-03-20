@@ -27,6 +27,8 @@ class HistoryManager:
         else:
             self.history_file = history_file
 
+        self.current_file = os.path.join('storage', 'data', 'mortality_current.json')
+
         # Ensure directory exists
         os.makedirs(os.path.dirname(self.history_file), exist_ok=True)
 
@@ -249,6 +251,58 @@ class HistoryManager:
             return (year_num, quarter_num)
         except ValueError:
             return (0, 0)
+
+
+    # ── Current data (full stats for report generation) ──────────────────────
+
+    def load_current_data(self) -> List[Dict]:
+        """Load all full-stats entries from mortality_current.json."""
+        try:
+            with open(self.current_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return []
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing current file: {e}")
+            return []
+
+    def save_current_data(self, quarter: str, year: str, statistics: Dict,
+                          who_categories: List, records: List = None,
+                          total_patients: int = 0, validation: Dict = None) -> None:
+        """
+        Save (or overwrite) the full statistics for a quarter in mortality_current.json.
+        This file stores everything needed for report generation — specialties,
+        demographics, clinical data, etc. — without bloating the lean history file.
+        """
+        new_entry = {
+            'quarter': quarter,
+            'year': year,
+            'statistics': statistics,
+            'who_categories': who_categories or [],
+            'records': records or [],
+            'total_patients': total_patients,
+            'validation': validation or {},
+        }
+
+        # Always overwrite with only the latest upload
+        with open(self.current_file, 'w', encoding='utf-8') as f:
+            json.dump([new_entry], f, ensure_ascii=False, indent=2)
+
+        logger.info(f"Saved current data: {quarter} {year}")
+
+    def get_current_data(self, quarter: str, year: str) -> Optional[Dict]:
+        """Return the full-stats entry for a given quarter, or None if not found."""
+        for entry in self.load_current_data():
+            if entry.get('quarter') == quarter and entry.get('year') == year:
+                return entry
+        return None
+
+    def get_latest_current_data(self) -> Optional[Dict]:
+        """Return the most recently uploaded entry (last item in the list)."""
+        data = self.load_current_data()
+        if not data:
+            return None
+        return data[-1]
 
 
 # Singleton instance

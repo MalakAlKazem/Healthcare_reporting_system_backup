@@ -1,8 +1,11 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from '../styles/Home.module.css';
 
 function Home({ language }) {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const ar = i18n.language === 'ar';
 
   return (
     <div className={styles.homeContainer}>
@@ -10,14 +13,10 @@ function Home({ language }) {
       <div className={styles.hero}>
         <div className={styles.heroIcon}>🏥</div>
         <h1 className={styles.heroTitle}>
-          {language === 'ar'
-            ? 'نظام التقارير الصحية الذكي'
-            : 'Smart Healthcare Reporting System'}
+          {t('homeTitle')}
         </h1>
         <p className={styles.heroSubtitle}>
-          {language === 'ar'
-            ? 'اختر نظام التقارير الذي تريد العمل عليه'
-            : 'Select the reporting system you want to work with'}
+          {t('homeSubtitle')}
         </p>
       </div>
 
@@ -32,21 +31,19 @@ function Home({ language }) {
           <div className={styles.cardGlow} />
           <div className={styles.cardIcon}>💀</div>
           <h2 className={styles.cardTitle}>
-            {language === 'ar' ? 'نظام تحليل معدل الوفيات' : 'Mortality Analysis System'}
+            {t('mortalityCardTitle')}
           </h2>
           <p className={styles.cardDescription}>
-            {language === 'ar'
-              ? 'تحليل بيانات الوفيات وإنشاء تقارير إحصائية شاملة بالفصول الربعية'
-              : 'Analyze mortality data and generate comprehensive quarterly statistical reports'}
+            {t('mortalityCardDesc')}
           </p>
           <div className={styles.cardFeatures}>
-            <span className={styles.feature}>📊 {language === 'ar' ? 'لوحة البيانات' : 'Dashboard'}</span>
-            <span className={styles.feature}>📈 {language === 'ar' ? 'التحليل' : 'Analysis'}</span>
-            <span className={styles.feature}>📄 {language === 'ar' ? 'التقارير' : 'Reports'}</span>
+            <span className={styles.feature}>📊 {t('featureDashboard')}</span>
+            <span className={styles.feature}>📈 {t('featureAnalysis')}</span>
+            <span className={styles.feature}>📄 {t('featureReports')}</span>
           </div>
           <div className={styles.cardCta}>
-            <span>{language === 'ar' ? 'ابدأ الآن' : 'Get Started'}</span>
-            <span className={styles.ctaArrow}>{language === 'ar' ? '←' : '→'}</span>
+            <span>{t('getStarted')}</span>
+            <span className={styles.ctaArrow}>{ar ? t('ctaArrowAr') : t('ctaArrowEn')}</span>
           </div>
         </button>
 
@@ -58,21 +55,19 @@ function Home({ language }) {
           <div className={styles.cardGlow} />
           <div className={styles.cardIcon}>💊</div>
           <h2 className={styles.cardTitle}>
-            {language === 'ar' ? 'نظام الإبلاغ عن أخطاء الدواء' : 'Medication Error Reporting'}
+            {t('medicationCardTitle')}
           </h2>
           <p className={styles.cardDescription}>
-            {language === 'ar'
-              ? 'رصد وتحليل أخطاء الدواء وإصدار تقارير الجودة والسلامة الدوائية'
-              : 'Monitor and analyze medication errors, generate quality and drug safety reports'}
+            {t('medicationCardDesc')}
           </p>
           <div className={styles.cardFeatures}>
-            <span className={styles.feature}>📊 {language === 'ar' ? 'لوحة البيانات' : 'Dashboard'}</span>
-            <span className={styles.feature}>📉 {language === 'ar' ? 'معدل الخطأ' : 'Error Rate'}</span>
-            <span className={styles.feature}>📄 {language === 'ar' ? 'التقارير' : 'Reports'}</span>
+            <span className={styles.feature}>📊 {t('featureDashboard')}</span>
+            <span className={styles.feature}>📉 {t('featureErrorRate')}</span>
+            <span className={styles.feature}>📄 {t('featureReports')}</span>
           </div>
           <div className={styles.cardCta}>
-            <span>{language === 'ar' ? 'ابدأ الآن' : 'Get Started'}</span>
-            <span className={styles.ctaArrow}>{language === 'ar' ? '←' : '→'}</span>
+            <span>{t('getStarted')}</span>
+            <span className={styles.ctaArrow}>{ar ? t('ctaArrowAr') : t('ctaArrowEn')}</span>
           </div>
         </button>
 
@@ -81,12 +76,10 @@ function Home({ language }) {
           <div className={styles.cardGlow} />
           <div className={styles.cardIcon}>🦠</div>
           <h2 className={styles.cardTitle}>
-            {language === 'ar' ? 'نظام مكافحة العدوى' : 'Infection Control System'}
+            {t('infectionCardTitle')}
           </h2>
           <p className={styles.cardDescription}>
-            {language === 'ar'
-              ? 'رصد وتحليل مؤشرات مكافحة العدوى (VAP, CLABSI, CAUTI) وإصدار تقارير الوقاية'
-              : 'Monitor and analyze infection control indicators (VAP, CLABSI, CAUTI) and generate prevention reports'}
+            {t('infectionCardDesc')}
           </p>
           <div className={styles.cardFeatures}>
             <button
@@ -101,8 +94,11 @@ function Home({ language }) {
             >
               🩸 CLABSI
             </button>
-            <button className={`${styles.indicatorBtn} ${styles.indicatorBtnDisabled}`} disabled>
-              🧪 CAUTI
+            <button
+              className={styles.indicatorBtn}
+              onClick={() => navigate('/cauti/upload')}
+            >
+              🧫 CAUTI
             </button>
           </div>
         </div>
@@ -111,9 +107,7 @@ function Home({ language }) {
 
       {/* Footer note */}
       <p className={styles.homeNote}>
-        {language === 'ar'
-          ? 'يمكنك التبديل بين الأنظمة في أي وقت من خلال شعار التطبيق'
-          : 'You can switch between systems at any time via the app logo'}
+        {t('homeNote')}
       </p>
     </div>
   );
