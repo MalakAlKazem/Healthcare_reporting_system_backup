@@ -362,48 +362,28 @@
     "year": "2025",
     "quarter": "الفصل الرابع",
     "summary": {
-      "ICU": {
-        "cases": 10,
-        "catheter_days": 200,
-        "rate": 50.0
-      },
       "CCU": {
         "cases": 1,
-        "catheter_days": 389,
-        "rate": 2.57
+        "catheter_days": 179,
+        "rate": 5.59
       },
       "CSU": {
         "cases": 3,
-        "catheter_days": 230,
-        "rate": 13.04
+        "catheter_days": 1071,
+        "rate": 2.8
       },
       "ICN": {
         "cases": 1,
-        "catheter_days": 123,
-        "rate": 8.13
+        "catheter_days": 370,
+        "rate": 2.7
       },
-      "Pediatric": {
-        "cases": 0,
-        "catheter_days": 32,
-        "rate": 0.0
-      },
-      "ITU": {
-        "cases": 0,
-        "catheter_days": 127,
-        "rate": 0.0
+      "ICU": {
+        "cases": 10,
+        "catheter_days": 885,
+        "rate": 11.3
       }
     },
     "germs_distribution": {
-      "ICU": {
-        "MRSA": 2,
-        "Acinetobacter Baumanii": 2,
-        "Enterococcus faecium": 1,
-        "Klebsiella CRE": 1,
-        "Candida albicans": 1,
-        "Klebsiella oxytoca": 1,
-        "Acinetobacter lwoffii": 1,
-        "Candida tropicalis": 1
-      },
       "CCU": {
         "Gemella morbillorum": 1
       },
@@ -414,8 +394,16 @@
       "ICN": {
         "Pseudomonas aeruginosa": 1
       },
-      "Pediatric": {},
-      "ITU": {}
+      "ICU": {
+        "MRSA": 2,
+        "Acinetobacter Baumanii": 2,
+        "Enterococcus faecium": 1,
+        "Klebsiella CRE": 1,
+        "Candida albicans": 1,
+        "Klebsiella oxytoca": 1,
+        "Acinetobacter lwoffii": 1,
+        "Candida tropicalis": 1
+      }
     }
   }
 ]

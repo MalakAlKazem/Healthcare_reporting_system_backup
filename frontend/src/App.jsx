@@ -39,6 +39,7 @@ import InfectionControlReports from './pages/infection_control/Reports';
 import VapDashboard from './pages/infection_control/vap/Dashboard';
 import ClabsiDashboard from './pages/infection_control/clabsi/Dashboard';
 import CautiDashboard from './pages/infection_control/cauti/Dashboard';
+import AdminPage from './pages/admin/AdminPage';
 
 // ─── Main App ───────────────────────────────────────────────────────────────
 function App() {
@@ -47,6 +48,7 @@ function App() {
   const [mortalityData, setMortalityData] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [medicationData, setMedicationData] = useState(null);
+  const [targets, setTargets] = useState({});
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
@@ -75,6 +77,17 @@ function App() {
       .catch(() => {});
   }, []);
 
+  const refreshTargets = () => {
+    fetch('http://localhost:8000/api/admin/targets')
+      .then(res => res.ok ? res.json() : {})
+      .then(data => setTargets(data))
+      .catch(() => {});
+  };
+
+  useEffect(() => { refreshTargets(); }, []);
+  useEffect(() => { if (mortalityData) refreshTargets(); }, [mortalityData]);
+  useEffect(() => { if (medicationData) refreshTargets(); }, [medicationData]);
+
   const toggleLanguage = () => {
     const newLang = language === 'ar' ? 'en' : 'ar';
     setLanguage(newLang);
@@ -90,6 +103,9 @@ function App() {
           <div className="content-wrapper">
             <ErrorBoundary>
             <Routes>
+              {/* ── Admin ── */}
+              <Route path="/admin" element={<AdminPage />} />
+
               {/* ── Home: system selector ── */}
               <Route path="/" element={<Home language={language} />} />
 
@@ -101,6 +117,7 @@ function App() {
                   quarter={mortalityData?.quarter || ''}
                   year={mortalityData?.year || ''}
                   historyData={historyData}
+                  mortalityTarget={targets?.mortality?.rate ?? 2}
                 />
               } />
               <Route path="/mortality/upload" element={
@@ -131,7 +148,7 @@ function App() {
                 } />
 
                 <Route path="/medication/dashboard" element={
-                  <MedicationDashboard language={language} data={medicationData} />
+                  <MedicationDashboard language={language} data={medicationData} medicationTarget={targets?.medication?.error_rate ?? 0.03} />
                 } />
 
                 <Route path="/medication/reports" element={

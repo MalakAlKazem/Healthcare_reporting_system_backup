@@ -868,7 +868,7 @@ npm run dev
 ---
 
 ## Local Deployment (Production)
-
+ 
 For deploying on a local server so the entire hospital network can access it — without Docker.
 
 ### Step 1 — Build the React Frontend
