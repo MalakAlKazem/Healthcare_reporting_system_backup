@@ -165,12 +165,13 @@ function DepartmentGauge({ name, rate, target, ar }) {
   );
 }
 
-function VapDashboard({ language }) {
+function VapDashboard({ language, selectedQuarter }) {
   const { t, i18n } = useTranslation();
   const ar = i18n.language === 'ar';
   const [history,     setHistory]     = useState([]);
   const [targets,     setTargets]     = useState({});
   const [currentData, setCurrentData] = useState(null);
+  const [casesData,   setCasesData]   = useState(null);
   const [loading,     setLoading]     = useState(true);
 
   useEffect(() => {
@@ -185,11 +186,18 @@ function VapDashboard({ language }) {
         if (cur && cur.quarter) setCurrentData(cur);
         setLoading(false);
       })
-      .catch(err => {
-        console.error("VAP dashboard error:", err);
-        setLoading(false);
-      });
+      .catch(err => { console.error("VAP dashboard error:", err); setLoading(false); });
   }, []);
+
+  // Fetch cases for the selected quarter (driven by the top-of-page quarter selector)
+  useEffect(() => {
+    if (!selectedQuarter) return;
+    setCasesData(null);
+    fetch(`${API_URL}/cases?quarter=${encodeURIComponent(selectedQuarter.quarter)}&year=${selectedQuarter.year}`)
+      .then(r => r.json())
+      .then(data => setCasesData(data))
+      .catch(() => {});
+  }, [selectedQuarter?.quarter, selectedQuarter?.year]);
 
   if (loading) return <div className={styles.emptyState}>{t('vapLoadingText')}</div>;
 
@@ -208,15 +216,24 @@ function VapDashboard({ language }) {
   const matchIdx = pQ && pY
     ? history.findIndex(e => String(e.year) === String(pY) && e.quarter === QUARTER_AR[Number(pQ)])
     : -1;
-  const latest = matchIdx >= 0
-    ? history[matchIdx]
-    : (currentData?.quarter && currentData?.year)
-      ? (history.find(e => e.quarter === currentData.quarter && String(e.year) === String(currentData.year)) || history[history.length - 1])
-      : history[history.length - 1];
+  const latest = selectedQuarter
+    ? (history.find(e => e.quarter === selectedQuarter.quarter && String(e.year) === String(selectedQuarter.year)) || history[history.length - 1])
+    : matchIdx >= 0
+      ? history[matchIdx]
+      : (currentData?.quarter && currentData?.year)
+        ? (history.find(e => e.quarter === currentData.quarter && String(e.year) === String(currentData.year)) || history[history.length - 1])
+        : history[history.length - 1];
 
   const activeFloors   = Object.keys(targets).filter(dept =>
     history.some(q => (q.summary?.[dept]?.cases || 0) > 0)
   );
+  const noTargetFloors = (() => {
+    const all = new Set();
+    history.forEach(q => Object.keys(q.summary || {}).forEach(dept => {
+      if ((q.summary[dept]?.cases || 0) > 0) all.add(dept);
+    }));
+    return [...all].filter(dept => !targets[dept]);
+  })();
   const displayHistory = history.slice(-4);
   const summaryHistory = history.slice(-6);
 
@@ -294,6 +311,43 @@ function VapDashboard({ language }) {
                 </tr>
               );
             })}
+
+            {noTargetFloors.map((dept) => (
+              <tr key={`nt-${dept}`} style={{ background: "#fffbeb" }}>
+                <td style={{ ...tdStyle, fontWeight: 600, color: "#92400e", minWidth: 50 }}>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span>{dept}</span>
+                    <span style={{ fontSize: "12px", color: "#b45309", marginTop: 2 }}>
+                      {t('noTargetDefined')}
+                    </span>
+                  </div>
+                </td>
+                {summaryHistory.map((q, colIdx) => {
+                  const cases = q.summary?.[dept]?.cases ?? null;
+                  return (
+                    <td key={colIdx} style={{ ...tdStyle, textAlign: "center", background: "#fffbeb" }}>
+                      {cases != null
+                        ? <div style={{ fontWeight: 700, color: "#92400e" }}>{cases}</div>
+                        : "—"}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+
+            <tr style={{ background: "#eff6ff", borderTop: "2px solid #bfdbfe" }}>
+              <td style={{ ...tdStyle, fontWeight: 700, color: "#1e3a8a", minWidth: 50 }}>
+                {t('totalCasesRow')}
+              </td>
+              {summaryHistory.map((q, colIdx) => {
+                const total = Object.values(q.summary || {}).reduce((s, v) => s + (v.cases || 0), 0);
+                return (
+                  <td key={colIdx} style={{ ...tdStyle, textAlign: "center", fontWeight: 800, color: "#1e3a8a" }}>
+                    {total}
+                  </td>
+                );
+              })}
+            </tr>
           </tbody>
         </table>
       </div>
@@ -319,7 +373,8 @@ function VapDashboard({ language }) {
       if (!validQuarters.length) return null;
 
       const quarterKeys = validQuarters.map(q => `${shortQ(q.quarter)} ${q.year}`);
-      const latestKey   = quarterKeys[quarterKeys.length - 1];
+      const selKey = selectedQuarter ? `${shortQ(selectedQuarter.quarter)} ${selectedQuarter.year}` : null;
+      const latestKey = (selKey && quarterKeys.includes(selKey)) ? selKey : quarterKeys[quarterKeys.length - 1];
 
       const germSet = new Set();
       validQuarters.forEach(q => {
@@ -446,12 +501,7 @@ function VapDashboard({ language }) {
 
         {/* ── Detailed Cases Table ── */}
         {(() => {
-          const deptCases = (currentData?.cases || []).filter(c => c.floor === dept);
-          if (!deptCases.length) return null;
-          const quarterMismatch = currentData && (
-            currentData.quarter !== latest.quarter ||
-            String(currentData.year) !== String(latest.year)
-          );
+          const deptCases = (casesData?.cases || currentData?.cases || []).filter(c => c.floor === dept);
           const dir  = ar ? 'rtl' : 'ltr';
           const thS  = { padding: '9px 10px', textAlign: 'start', fontWeight: 700,
                          color: '#1e3a8a', whiteSpace: 'nowrap',
@@ -466,20 +516,21 @@ function VapDashboard({ language }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                 <h3 style={{ margin: 0, color: '#1e3a8a' }}>
                   {ar ? `تفاصيل الحالات — ${dept}` : `Detailed Cases — ${dept}`}
-                  <span style={{ fontSize: 13, fontWeight: 400, color: SLATE, marginInlineStart: 8 }}>
-                    ({currentData.quarter} {currentData.year})
-                  </span>
+                  {(casesData || currentData) && (
+                    <span style={{ fontSize: 13, fontWeight: 400, color: SLATE, marginInlineStart: 8 }}>
+                      {(() => { const src = casesData || currentData; return `(${src.quarter} ${src.year})`; })()}
+                    </span>
+                  )}
                 </h3>
-                {quarterMismatch && (
-                  <span style={{ fontSize: 11, color: '#b45309', background: '#fef3c7',
-                                 padding: '2px 8px', borderRadius: 6 }}>
-                    {ar ? '⚠ البيانات من آخر رفع' : '⚠ Cases from most recent upload'}
-                  </span>
-                )}
                 <span style={{ marginInlineStart: 'auto', fontSize: 12, color: SLATE }}>
                   {ar ? `${deptCases.length} حالة` : `${deptCases.length} case${deptCases.length !== 1 ? 's' : ''}`}
                 </span>
               </div>
+              {!deptCases.length ? (
+                <p style={{ color: SLATE, fontSize: 13 }}>
+                  {ar ? 'لا توجد حالات لهذا القسم في الفصل المختار.' : 'No cases for this department in the selected quarter.'}
+                </p>
+              ) : (
               <div style={{ overflowX: 'auto', borderRadius: 10,
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }} dir={dir}>
@@ -509,6 +560,7 @@ function VapDashboard({ language }) {
                   </tbody>
                 </table>
               </div>
+            )}
             </div>
           );
         })()}

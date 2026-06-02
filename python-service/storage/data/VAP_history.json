@@ -191,46 +191,26 @@
     "quarter": "الفصل الثالث",
     "year": "2025",
     "summary": {
-      "ICU": {
-        "cases": 1,
-        "ventilator_days": 650,
-        "rate": 1.53
-      },
       "CCU": {
-        "cases": 4,
-        "ventilator_days": 33,
-        "rate": 121.21
+        "cases": 3,
+        "ventilator_days": 2355,
+        "rate": 1.27
       },
-      "CSU": {
-        "cases": 1,
-        "ventilator_days": 229,
-        "rate": 4.36
-      },
-      "Ped": {
-        "cases": 0,
-        "ventilator_days": 0,
-        "rate": 0.0
-      },
-      "ICN": {
-        "cases": 1,
-        "ventilator_days": 209,
-        "rate": 4.78
-      },
-      "ITU": {
-        "cases": 0,
-        "ventilator_days": 0,
-        "rate": 0.0
+      "ICU": {
+        "cases": 2,
+        "ventilator_days": 2345,
+        "rate": 0.85
       }
     },
     "germs_distribution": {
-      "ICU": {
-        "Proteus ESBL": 1
-      },
       "CCU": {
-        "Xanthomonas maltophilia": 1
+        "Acinetobacter Baumanii": 1,
+        "Klebsiella CRE": 1,
+        "Pseudomonas aeruginosa": 1
       },
-      "ICN": {
-        "Xanthomonas maltophilia": 1
+      "ICU": {
+        "Klebsiella ESBL": 1,
+        "Acinetobacter Baumanii": 1
       }
     }
   },
@@ -239,9 +219,9 @@
     "year": "2025",
     "summary": {
       "CCU": {
-        "cases": 4,
+        "cases": 2,
         "ventilator_days": 228,
-        "rate": 17.54
+        "rate": 8.77
       },
       "CSU": {
         "cases": 1,
@@ -255,19 +235,27 @@
       },
       "ICU": {
         "cases": 2,
-        "ventilator_days": 707,
-        "rate": 2.83
+        "ventilator_days": 1661,
+        "rate": 1.2
       },
-      "NEW": {
+      "Ped": {
         "cases": 1,
-        "ventilator_days": 300,
-        "rate": 3.33
+        "ventilator_days": 234,
+        "rate": 4.27
+      },
+      "test NO-TARGET": {
+        "cases": 1,
+        "ventilator_days": 456,
+        "rate": 2.19
+      },
+      "test2": {
+        "cases": 1,
+        "ventilator_days": 876,
+        "rate": 1.14
       }
     },
     "germs_distribution": {
       "CCU": {
-        "Acinetobacter Baumanii": 1,
-        "Klebsiella CRE": 1,
         "Pseudomonas aeruginosa": 1,
         "Xanthomonas maltophilia": 1
       },
@@ -283,8 +271,14 @@
         "Klebsiella ESBL": 1,
         "Acinetobacter Baumanii": 1
       },
-      "NEW": {
+      "Ped": {
+        "Acinetobacter Baumanii": 1
+      },
+      "test NO-TARGET": {
         "Xanthomonas maltophilia": 1
+      },
+      "test2": {
+        "Klebsiella CRE": 1
       }
     }
   }

@@ -82,6 +82,16 @@ function qLabel(q, y, t) {
   return `${label} ${y}`;
 }
 
+const shortQ = (quarter) => {
+  const map = {
+    "الفصل الأول": "Q1", "الفصل الاول": "Q1",
+    "الفصل الثاني": "Q2",
+    "الفصل الثالث": "Q3",
+    "الفصل الرابع": "Q4",
+  };
+  return map[quarter] || quarter;
+};
+
 /* ── Semicircle Gauge ── */
 function DepartmentGauge({ name, rate, target }) {
   const { t } = useTranslation();
@@ -138,12 +148,13 @@ function DepartmentGauge({ name, rate, target }) {
 }
 
 /* ── Dashboard ── */
-function ClabsiDashboard() {
+function ClabsiDashboard({ selectedQuarter }) {
   const { t, i18n } = useTranslation();
   const ar = i18n.language === 'ar';
   const [history,     setHistory]     = useState([]);
   const [currentData, setCurrentData] = useState(null);
   const [targets,     setTargets]     = useState({});
+  const [casesData,   setCasesData]   = useState(null);
   const [loading,     setLoading]     = useState(true);
 
   useEffect(() => {
@@ -161,11 +172,22 @@ function ClabsiDashboard() {
       .catch(err => { console.error("Dashboard error:", err); setLoading(false); });
   }, []);
 
+  useEffect(() => {
+    if (!selectedQuarter) return;
+    setCasesData(null);
+    fetch(`${API_URL}/cases?quarter=${encodeURIComponent(selectedQuarter.quarter)}&year=${selectedQuarter.year}`)
+      .then(r => r.json())
+      .then(data => setCasesData(data))
+      .catch(() => {});
+  }, [selectedQuarter?.quarter, selectedQuarter?.year]);
+
   if (loading) return <div className={styles.emptyState}>{t("clabsiLoadingText")}</div>;
 
-  const latestHistory = (currentData?.quarter && currentData?.year)
-    ? (history.find(h => h.quarter === currentData.quarter && String(h.year) === String(currentData.year)) || history[history.length - 1])
-    : history[history.length - 1];
+  const latestHistory = selectedQuarter
+    ? (history.find(h => h.quarter === selectedQuarter.quarter && String(h.year) === String(selectedQuarter.year)) || history[history.length - 1])
+    : (currentData?.quarter && currentData?.year)
+      ? (history.find(h => h.quarter === currentData.quarter && String(h.year) === String(currentData.year)) || history[history.length - 1])
+      : history[history.length - 1];
   if (!latestHistory?.summary) {
     return <div className={styles.emptyState}><h2>{t("clabsiNoData")}</h2></div>;
   }
@@ -175,6 +197,13 @@ function ClabsiDashboard() {
   const activeFloors   = Object.keys(targets).filter(dept =>
     history.some(q => (q.summary?.[dept]?.cases || 0) > 0)
   );
+  const noTargetFloors = (() => {
+    const all = new Set();
+    history.forEach(q => Object.keys(q.summary || {}).forEach(dept => {
+      if ((q.summary[dept]?.cases || 0) > 0) all.add(dept);
+    }));
+    return [...all].filter(dept => !targets[dept]);
+  })();
   const displayHistory = history.slice(-4);
   const summaryHistory = history.slice(-6);
 
@@ -256,6 +285,43 @@ function ClabsiDashboard() {
                   })}
                 </tr>
               ))}
+
+              {noTargetFloors.map((dept) => (
+                <tr key={`nt-${dept}`} style={{ background: "#fffbeb" }}>
+                  <td style={{ ...tdStyle, fontWeight: 600, color: "#92400e", minWidth: 50 }}>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span>{dept}</span>
+                      <span style={{ fontSize: "12px", color: "#b45309", marginTop: 2 }}>
+                        {t('noTargetDefined')}
+                      </span>
+                    </div>
+                  </td>
+                  {summaryHistory.map((q, colIndex) => {
+                    const cases = q.summary?.[dept]?.cases ?? null;
+                    return (
+                      <td key={colIndex} style={{ ...tdStyle, textAlign: "center", background: "#fffbeb" }}>
+                        {cases != null
+                          ? <div style={{ fontWeight: 700, color: "#92400e" }}>{cases}</div>
+                          : "—"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+
+              <tr style={{ background: "#eff6ff", borderTop: "2px solid #bfdbfe" }}>
+                <td style={{ ...tdStyle, fontWeight: 700, color: "#1e3a8a", minWidth: 50 }}>
+                  {t('totalCasesRow')}
+                </td>
+                {summaryHistory.map((q, colIndex) => {
+                  const total = Object.values(q.summary || {}).reduce((s, v) => s + (v.cases || 0), 0);
+                  return (
+                    <td key={colIndex} style={{ ...tdStyle, textAlign: "center", fontWeight: 800, color: "#1e3a8a" }}>
+                      {total}
+                    </td>
+                  );
+                })}
+              </tr>
             </tbody>
           </table>
         </div>
@@ -375,18 +441,18 @@ function ClabsiDashboard() {
             target: targets[dept],
           }));
 
-          const deptCases = (currentData?.cases || []).filter(c => c.floor === dept);
-
-          /* Germ heatmap — include ALL history quarters, empty germs show as blank */
+          /* Germ heatmap — uses casesData (selected Q) for the current extra column */
+          const casesQSrc = casesData || currentData;
+          const deptCasesForHeatmap = (casesQSrc?.cases || []).filter(c => c.floor === dept);
           const currentGerms = {};
-          deptCases.forEach(c => {
+          deptCasesForHeatmap.forEach(c => {
             const g = c.germs;
             if (g) currentGerms[g] = (currentGerms[g] || 0) + (c.nb_of_cases || 1);
           });
           const hasCurrentGerms = Object.keys(currentGerms).length > 0;
 
-          const currentQKey = hasCurrentGerms
-            ? qLabel(currentData.quarter, currentData.year, t)
+          const currentQKey = (hasCurrentGerms && casesQSrc)
+            ? qLabel(casesQSrc.quarter, casesQSrc.year, t)
             : null;
           const histAllKeys = displayHistory.map(q => qLabel(q.quarter, q.year, t));
           const currentAlreadyInHistory = currentQKey && histAllKeys.includes(currentQKey);
@@ -400,12 +466,15 @@ function ClabsiDashboard() {
             ...(hasCurrentGerms && !currentAlreadyInHistory ? [{
               key:   currentQKey,
               germs: currentGerms,
-              cases: deptCases.reduce((s, c) => s + (c.nb_of_cases || 1), 0),
+              cases: deptCasesForHeatmap.reduce((s, c) => s + (c.nb_of_cases || 1), 0),
             }] : []),
           ];
 
           const quarterKeys = heatmapQuarters.map(q => q.key);
-          const latestQKey  = quarterKeys[quarterKeys.length - 1];
+          const selQLabel = selectedQuarter ? qLabel(selectedQuarter.quarter, selectedQuarter.year, t) : null;
+          const latestQKey = (selQLabel && quarterKeys.includes(selQLabel))
+            ? selQLabel
+            : quarterKeys[quarterKeys.length - 1];
 
           const germMap = new Map();
           heatmapQuarters.forEach(q => {
@@ -506,12 +575,7 @@ function ClabsiDashboard() {
 
               {/* ── Detailed Cases Table ── */}
               {(() => {
-                const floorCases = deptCases;
-                if (!floorCases.length) return null;
-                const quarterMismatch = currentData && (
-                  currentData.quarter !== latestHistory.quarter ||
-                  String(currentData.year) !== String(latestHistory.year)
-                );
+                const tableCases = (casesData?.cases || currentData?.cases || []).filter(c => c.floor === dept);
                 const thS = { padding: '9px 10px', textAlign: 'start', fontWeight: 700,
                               color: '#1e3a8a', whiteSpace: 'nowrap',
                               borderBottom: '2px solid #93c5fd', background: '#dbeafe' };
@@ -525,20 +589,21 @@ function ClabsiDashboard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                       <h3 style={{ margin: 0, color: '#1e3a8a' }}>
                         {ar ? `حالات مفصلة — ${dept}` : `Detailed Cases — ${dept}`}
-                        <span style={{ fontSize: 13, fontWeight: 400, color: SLATE, marginInlineStart: 8 }}>
-                          ({currentData?.quarter} {currentData?.year})
-                        </span>
+                        {(casesData || currentData) && (
+                          <span style={{ fontSize: 13, fontWeight: 400, color: SLATE, marginInlineStart: 8 }}>
+                            {(() => { const s = casesData || currentData; return `(${s.quarter} ${s.year})`; })()}
+                          </span>
+                        )}
                       </h3>
-                      {quarterMismatch && (
-                        <span style={{ fontSize: 11, color: '#b45309', background: '#fef3c7',
-                                       padding: '2px 8px', borderRadius: 6 }}>
-                          {ar ? '⚠ البيانات من آخر رفع' : '⚠ Cases from most recent upload'}
-                        </span>
-                      )}
                       <span style={{ marginInlineStart: 'auto', fontSize: 12, color: SLATE }}>
-                        {ar ? `${floorCases.length} حالة` : `${floorCases.length} case${floorCases.length !== 1 ? 's' : ''}`}
+                        {ar ? `${tableCases.length} حالة` : `${tableCases.length} case${tableCases.length !== 1 ? 's' : ''}`}
                       </span>
                     </div>
+                    {!tableCases.length ? (
+                      <p style={{ color: SLATE, fontSize: 13 }}>
+                        {ar ? 'لا توجد حالات لهذا القسم في الفصل المختار.' : 'No cases for this department in the selected quarter.'}
+                      </p>
+                    ) : (
                     <div style={{ overflowX: 'auto', borderRadius: 10,
                                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }} dir={ar ? 'rtl' : 'ltr'}>
@@ -548,7 +613,7 @@ function ClabsiDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {floorCases.map((c, i) => (
+                          {tableCases.map((c, i) => (
                             <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f0f7ff' }}>
                               <td style={{ ...tdS, fontWeight: 600, whiteSpace: 'nowrap' }}>
                                 {fmtNum(c.case_number) !== '—' ? fmtNum(c.case_number) : i + 1}
@@ -570,6 +635,7 @@ function ClabsiDashboard() {
                         </tbody>
                       </table>
                     </div>
+                    )}
                   </div>
                 );
               })()}

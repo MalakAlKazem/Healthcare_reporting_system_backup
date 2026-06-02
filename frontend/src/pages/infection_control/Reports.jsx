@@ -57,13 +57,14 @@ const TYPE_CONFIG = {
   },
 };
 
-function InfectionControlReports({ type }) {
+function InfectionControlReports({ type, selectedQ }) {
   const { t, i18n } = useTranslation();
   const ar  = i18n.language === 'ar';
   const cfg = TYPE_CONFIG[type];
 
   const [tab,        setTab]        = useState('summary');
   const [entry,      setEntry]      = useState(null);
+  const [allEntries, setAllEntries] = useState([]);
   const [targets,    setTargets]    = useState({});
   const [loading,    setLoading]    = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -82,10 +83,12 @@ function InfectionControlReports({ type }) {
     ])
       .then(([histRes, tgtsRes, curRes]) => {
         const entries = Array.isArray(histRes.data) ? histRes.data : [];
+        setAllEntries(entries);
         const cur = curRes.data || {};
-        // Default to last uploaded quarter; fallback to last chronological entry
-        const matched = cur.quarter
-          ? entries.find(e => e.quarter === cur.quarter && String(e.year) === String(cur.year))
+        // Prefer the top-of-page selected quarter, then last uploaded, then last entry
+        const preferred = selectedQ || (cur.quarter ? { quarter: cur.quarter, year: String(cur.year) } : null);
+        const matched = preferred
+          ? entries.find(e => e.quarter === preferred.quarter && String(e.year) === String(preferred.year))
           : null;
         setEntry(matched || (entries.length > 0 ? entries[entries.length - 1] : null));
         setTargets(tgtsRes.data || {});
@@ -94,11 +97,21 @@ function InfectionControlReports({ type }) {
       .finally(() => setLoading(false));
   }, [type]);
 
+  // Sync when selectedQ changes (user picks different quarter from top selector)
+  useEffect(() => {
+    if (!selectedQ || !allEntries.length) return;
+    const matched = allEntries.find(e => e.quarter === selectedQ.quarter && String(e.year) === String(selectedQ.year));
+    if (matched) { setEntry(matched); setReportUrl(null); }
+  }, [selectedQ, allEntries]);
+
   const handleGenerateReport = async () => {
     setGenerating(true);
     setReportUrl(null);
     try {
-      const response = await axios.post(`${cfg.apiBase}/generate-report`);
+      const response = await axios.post(`${cfg.apiBase}/generate-report`, {
+        quarter: entry?.quarter,
+        year:    entry?.year ? String(entry.year) : undefined,
+      });
       if (response.data.success) {
         const url = `${cfg.apiBase}/download-report?fileName=${encodeURIComponent(response.data.fileName)}`;
         setReportUrl(url);
@@ -146,11 +159,16 @@ function InfectionControlReports({ type }) {
     );
   }
 
-  const summary     = entry.summary || {};
-  const totalCases  = Object.values(summary).reduce((s, v) => s + (v.cases || 0), 0);
-  const totalDays   = Object.values(summary).reduce((s, v) => s + (v[cfg.daysKey] || 0), 0);
-  const overallRate = totalDays > 0
-    ? ((totalCases / totalDays) * 1000).toFixed(2)
+  const summary        = entry.summary || {};
+  const totalCases     = Object.values(summary).reduce((s, v) => s + (v.cases || 0), 0);
+  // Only targeted floors contribute to rate / days (no-target floors are case-count only)
+  const targetedFloorEntries  = Object.entries(summary).filter(([dept]) => dept in targets);
+  const noTargetEntries       = Object.entries(summary).filter(([dept]) => !(dept in targets) && (summary[dept]?.cases || 0) > 0);
+  const totalDays      = targetedFloorEntries.reduce((s, [, v]) => s + (v[cfg.daysKey] || 0), 0);
+  const targetedCases  = targetedFloorEntries.reduce((s, [, v]) => s + (v.cases || 0), 0);
+  const noTargetCases  = noTargetEntries.reduce((s, [, v]) => s + (v.cases || 0), 0);
+  const overallRate    = totalDays > 0
+    ? ((targetedCases / totalDays) * 1000).toFixed(2)
     : '—';
 
   const statCards = [
@@ -334,6 +352,57 @@ function InfectionControlReports({ type }) {
                 : `Based on ${quarterLabel(entry.quarter, entry.year, false)} data, ${totalCases} ${cfg.label} cases were recorded across ${totalDays.toLocaleString()} days, with an overall rate of ${overallRate}‰.`}
             </p>
           </div>
+
+          {/* ── No-target Departments ── */}
+          {noTargetEntries.length > 0 && (
+            <div style={{
+              marginTop: '1.5rem',
+              border: '1px solid #fde68a',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                background: 'linear-gradient(to right, #fffbeb, #fef3c7)',
+                padding: '0.75rem 1.25rem',
+                borderBottom: '1px solid #fde68a',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <h4 style={{ margin: 0, color: '#92400e', fontSize: '0.95rem', fontWeight: 700 }}>
+                  ⚠ {ar ? 'أقسام بدون هدف محدد' : 'Departments without a target'}
+                </h4>
+                <span style={{
+                  background: '#f59e0b', color: '#fff',
+                  borderRadius: 999, padding: '2px 10px', fontSize: 12, fontWeight: 700,
+                }}>
+                  {noTargetCases} {ar ? 'حالة' : 'cases'}
+                </span>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#fef9c3' }}>
+                    <th style={{ padding: '8px 14px', textAlign: 'start', fontWeight: 600, color: '#78350f', borderBottom: '1px solid #fde68a' }}>
+                      {ar ? 'القسم' : 'Department'}
+                    </th>
+                    <th style={{ padding: '8px 14px', textAlign: 'center', fontWeight: 600, color: '#78350f', borderBottom: '1px solid #fde68a' }}>
+                      {ar ? 'عدد الحالات' : 'Cases'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {noTargetEntries.map(([dept, data], i) => (
+                    <tr key={dept} style={{ background: i % 2 === 0 ? '#fffbeb' : '#fff' }}>
+                      <td style={{ padding: '8px 14px', fontWeight: 600, color: '#92400e', borderBottom: '1px solid #fef3c7' }}>
+                        {dept}
+                      </td>
+                      <td style={{ padding: '8px 14px', textAlign: 'center', fontWeight: 700, color: '#b45309', borderBottom: '1px solid #fef3c7' }}>
+                        {data.cases || 0}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -372,34 +441,37 @@ function InfectionControlReports({ type }) {
               </thead>
               <tbody>
                 {Object.entries(summary).map(([dept, data], i) => {
-                  const casesV   = data.cases || 0;
-                  const daysV    = data[cfg.daysKey] || 0;
-                  const rate     = data.rate || 0;
-                  const target   = targets[dept] || 0;
-                  const isAbove  = rate > target && casesV > 0;
-                  const hasData  = casesV > 0 || daysV > 0;
+                  const casesV    = data.cases || 0;
+                  const daysV     = data[cfg.daysKey] || 0;
+                  const rate      = data.rate || 0;
+                  const hasTarget = dept in targets;
+                  const target    = hasTarget ? targets[dept] : null;
+                  const isAbove   = hasTarget && rate > target && casesV > 0;
+                  const rowBg     = !hasTarget ? '#fffbeb' : i % 2 === 0 ? cfg.light : 'white';
                   return (
-                    <tr key={dept} style={{ background: i % 2 === 0 ? cfg.light : 'white' }}>
-                      <td style={{ padding: '0.6rem 1rem', fontWeight: 700, color: cfg.dark, textAlign: 'center' }}>
+                    <tr key={dept} style={{ background: rowBg }}>
+                      <td style={{ padding: '0.6rem 1rem', fontWeight: 700, color: hasTarget ? cfg.dark : '#92400e', textAlign: 'center' }}>
                         {dept}
+                        {!hasTarget && (
+                          <div style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 600 }}>
+                            {ar ? 'لا يوجد هدف' : 'No target'}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '0.6rem 1rem', textAlign: 'center', fontWeight: 600 }}>
                         {casesV}
                       </td>
                       <td style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>
-                        {daysV.toLocaleString()}
+                        {hasTarget ? daysV.toLocaleString() : <span style={{ color: '#94a3b8' }}>—</span>}
                       </td>
-                      <td style={{
-                        padding: '0.6rem 1rem', textAlign: 'center', fontWeight: 700,
-                        color: hasData ? (isAbove ? '#dc2626' : '#16a34a') : '#94a3b8',
-                      }}>
-                        {hasData ? `${rate}` : '—'}
+                      <td style={{ padding: '0.6rem 1rem', textAlign: 'center', fontWeight: 700, color: isAbove ? '#dc2626' : '#16a34a' }}>
+                        {hasTarget && casesV > 0 ? `${rate}` : <span style={{ color: '#94a3b8' }}>—</span>}
                       </td>
                       <td style={{ padding: '0.6rem 1rem', textAlign: 'center', color: '#d97706', fontWeight: 600 }}>
-                        {target}
+                        {hasTarget ? target : <span style={{ color: '#94a3b8' }}>—</span>}
                       </td>
                       <td style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>
-                        {!hasData ? (
+                        {!hasTarget || !casesV ? (
                           <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>—</span>
                         ) : (
                           <span style={{
