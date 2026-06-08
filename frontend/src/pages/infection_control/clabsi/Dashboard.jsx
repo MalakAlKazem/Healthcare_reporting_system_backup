@@ -121,7 +121,7 @@ function DepartmentGauge({ name, rate, target }) {
         <text x="100" y="82" textAnchor="middle" fontSize="22" fontWeight="800" fill={isAbove ? RED : GREEN}>
           {rate.toFixed(2)}‰
         </text>
-        <text x="100" y="98" textAnchor="middle" fontSize="10" fill="#94a3b8">
+        <text x="100" y="14" textAnchor="middle" fontSize="10" fontWeight="600" fill="#92400e">
           {t("vapTarget")} {target}‰
         </text>
       </svg>
@@ -130,7 +130,7 @@ function DepartmentGauge({ name, rate, target }) {
       </div>
       <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 16, fontSize: 12, color: SLATE }}>
         {[
-          { label: t("vapActual"),                              value: `${rate.toFixed(2)}‰`, color: isAbove ? RED : GREEN },
+          { label: "Result",                              value: `${rate.toFixed(2)}‰`, color: isAbove ? RED : GREEN },
           { label: t("vapTargetLabel"),                         value: `${target}‰`,          color: AMBER },
           { label: isAbove ? t("vapOver") : t("vapUnder"),     value: `${Math.abs(rate - target).toFixed(2)}‰`, color: isAbove ? RED : GREEN },
         ].map((item, i, arr) => (
@@ -347,26 +347,42 @@ function ClabsiDashboard({ selectedQuarter }) {
           const cx = x + width / 2;
           return (
             <g>
-              <text x={cx} y={y - 20} textAnchor="middle" fontSize={10} fontWeight={700} fill="#1e293b">
+              <text x={cx} y={y - 46} textAnchor="middle" fontSize={10} fontWeight={700} fill="#1e293b">
                 {Number(d.rate ?? 0).toFixed(1)}‰
               </text>
-              <text x={cx} y={y - 7} textAnchor="middle" fontSize={9} fill="#64748b">
+              <text x={cx} y={y - 33} textAnchor="middle" fontSize={9} fill="#64748b">
                 ({d.cases ?? 0})
+              </text>
+              <text x={cx} y={y - 18} textAnchor="middle" fontSize={9} fill="#92400e" fontWeight={600}>
+                Target: {d.target}‰
               </text>
             </g>
           );
         };
 
         return (
-          <div id="clabsi-floor-comparison" style={{ background: "#ffffff", borderRadius: "14px",
+          <div id="clabsi-floor-comparison" dir="ltr" style={{ background: "#ffffff", borderRadius: "14px",
                         boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
                         padding: "1.5rem", marginBottom: "2rem", marginTop: "2rem" }}>
             <h3 style={{ margin: "0 0 1rem", color: "#1e3a8a" }}>
               {t('clabsiDashboardTitle')} — {t('floorRateComparison')} ({qLabel(latestHistory.quarter, latestHistory.year, t)})
             </h3>
+            <div style={{ position: 'relative' }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 1, display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-start', background: 'rgba(255,255,255,0.92)', padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                {[
+                  { label: 'Favorable', color: GREEN },
+                  { label: 'Non Favorable', color: RED },
+                  { label: t('vapTargetLabel'), color: '#92400e' },
+                ].map(item => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <div style={{ width: 12, height: 12, background: item.color, borderRadius: 2, flexShrink: 0 }} />
+                    <span style={{ color: '#374151', fontWeight: 500 }}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
             <ResponsiveContainer width="100%" height={chartHeight}>
               <BarChart data={floorBarData}
-                        margin={{ top: 44, right: 20, left: 0, bottom: 8 }}
+                        margin={{ top: 64, right: 20, left: 0, bottom: 8 }}
                         barCategoryGap="25%">
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="floor"
@@ -382,31 +398,26 @@ function ClabsiDashboard({ selectedQuarter }) {
                     const rateRow   = payload.find(p => p.dataKey === 'rate');
                     const targetRow = payload.find(p => p.dataKey === 'target');
                     const cases     = rateRow?.payload?.cases ?? 0;
+                    const isFavorable = (rateRow?.payload?.rate ?? 0) <= (rateRow?.payload?.target ?? 0);
+                    const rateLabel = isFavorable ? 'Favorable' : 'Non Favorable';
+                    const rateColor = isFavorable ? GREEN : RED;
                     return (
                       <div style={{ ...TS.contentStyle, minWidth: 170 }}>
                         <div style={{ fontWeight: 700, marginBottom: 6, color: '#1e293b' }}>{label}</div>
                         {rateRow && (
-                          <div style={{ color: rateRow.fill, marginBottom: 3 }}>
-                            {t('vapActualRate')}: {Number(rateRow.value).toFixed(2)}‰
+                          <div style={{ color: rateColor, marginBottom: 3 }}>
+                            {rateLabel}: {Number(rateRow.value).toFixed(2)}‰
                             <span style={{ color: '#64748b', marginLeft: 6 }}>({cases} cases)</span>
                           </div>
                         )}
                         {targetRow && (
-                          <div style={{ color: AMBER }}>
+                          <div style={{ color: '#92400e' }}>
                             {t('vapTargetLabel')}: {targetRow.value}‰
                           </div>
                         )}
                       </div>
                     );
                   }}
-                />
-                <Legend
-                  verticalAlign="top" height={36}
-                  payload={[
-                    { value: `${t('vapActualRate')} (≤ ${t('vapTargetLabel')})`, type: 'square', color: GREEN },
-                    { value: `${t('vapActualRate')} (> ${t('vapTargetLabel')})`, type: 'square', color: RED },
-                    { value: t('vapTargetLabel'),                                  type: 'square', color: AMBER },
-                  ]}
                 />
                 <Bar dataKey="rate" name={t('vapActualRate')}
                      radius={[6, 6, 0, 0]} maxBarSize={maxBarSize}>
@@ -417,14 +428,11 @@ function ClabsiDashboard({ selectedQuarter }) {
                   <LabelList content={RateLabel} />
                 </Bar>
                 <Bar dataKey="target" name={t('vapTargetLabel')}
-                     fill={AMBER} fillOpacity={0.45} radius={[6, 6, 0, 0]}
-                     maxBarSize={maxBarSize}>
-                  <LabelList dataKey="target" position="top"
-                             formatter={v => `${v}‰`}
-                             style={{ fontSize: 10, fill: AMBER }} />
-                </Bar>
+                     fill="#92400e" radius={[6, 6, 0, 0]}
+                     maxBarSize={maxBarSize} />
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
         );
       })()}
@@ -500,7 +508,7 @@ function ClabsiDashboard({ selectedQuarter }) {
           const getColor = (pct, qk) => {
             const n = pct / maxPercent;
             const s = { r: 219, g: 234, b: 254 };
-            const e = { r: 30,  g: 64,  b: 175 };
+            const e = { r: 59,  g: 130, b: 246 };
             let r = Math.round(s.r + (e.r - s.r) * n);
             let g = Math.round(s.g + (e.g - s.g) * n);
             let b = Math.round(s.b + (e.b - s.b) * n);
@@ -509,9 +517,9 @@ function ClabsiDashboard({ selectedQuarter }) {
           };
           const heatTextColor = (pct) => {
             const n = pct / maxPercent;
-            const lum = 0.2126 * (219 + (30  - 219) * n) / 255
-                      + 0.7152 * (234 + (64  - 234) * n) / 255
-                      + 0.0722 * (254 + (175 - 254) * n) / 255;
+            const lum = 0.2126 * (219 + (59  - 219) * n) / 255
+                      + 0.7152 * (234 + (130 - 234) * n) / 255
+                      + 0.0722 * (254 + (246 - 254) * n) / 255;
             return lum < 0.45 ? '#fff' : '#1e293b';
           };
 
@@ -536,11 +544,11 @@ function ClabsiDashboard({ selectedQuarter }) {
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                       <XAxis dataKey="label" interval={0} angle={-30} textAnchor="end" height={75} tick={{ fontSize: 9 }} padding={{ right: 30 }} />
                       <YAxis hide />
-                      <Tooltip {...TS} formatter={(v, n) => [`${v.toFixed(2)}‰`, n === "rate" ? t("vapActual") : t("vapTargetLabel")]} />
+                      <Tooltip {...TS} formatter={(v, n) => [`${v.toFixed(2)}‰`, n]} />
                       <Legend verticalAlign="top" height={30} />
-                      <Line type="monotone" dataKey="rate" name={t("vapActualRate")} stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: "#2563eb" }}
+                      <Line type="monotone" dataKey="rate" name="Result" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: "#2563eb" }}
                         label={{ position: "top", fontSize: 10, fontWeight: 700, fill: "#2563eb", formatter: v => `${v.toFixed(1)}‰` }} />
-                      <Line type="monotone" dataKey="target" name={t("vapTargetLabel")} stroke={RED} strokeDasharray="6 3" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="target" name={t("vapTargetLabel")} stroke="#92400e" strokeDasharray="6 3" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -560,9 +568,9 @@ function ClabsiDashboard({ selectedQuarter }) {
                           {quarterKeys.map(q => {
                             const cell = row.values[q] || { count: 0, percent: 0 };
                             return (
-                              <div key={q} style={{ background: getColor(cell.percent, q), borderRadius: 8, padding: 8, textAlign: "center", fontSize: 11, fontWeight: 600, color: heatTextColor(cell.percent) }}>
+                              <div key={q} style={{ background: getColor(cell.percent, q), borderRadius: 8, padding: 8, textAlign: "center", fontSize: 13, fontWeight: 700, color: heatTextColor(cell.percent) }}>
                                 {cell.count}
-                                <div style={{ fontSize: 10 }}>({cell.percent.toFixed(0)}%)</div>
+                                <div style={{ fontSize: 12 }}>({cell.percent.toFixed(0)}%)</div>
                               </div>
                             );
                           })}

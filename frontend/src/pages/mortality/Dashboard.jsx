@@ -199,7 +199,7 @@ function MortalityGauge({ rate, target }) {
         <text x="100" y="86" textAnchor="middle" fontSize="26" fontWeight="800" fill={isAbove ? '#ef4444' : '#10b981'}>
           {rate.toFixed(2)}%
         </text>
-        <text x="100" y="102" textAnchor="middle" fontSize="10" fill="#94a3b8">target {target}%</text>
+        <text x="100" y="14" textAnchor="middle" fontSize="10" fontWeight="600" fill="#92400e">target {target}%</text>
       </svg>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: isAbove ? '#fef2f2' : '#f0fdf4', color: isAbove ? '#dc2626' : '#16a34a', borderRadius: 20, padding: '5px 16px', fontSize: 12, fontWeight: 700, marginTop: 4 }}>
         {isAbove ? '▲ Above Target' : '▼ Below Target'}
@@ -207,7 +207,7 @@ function MortalityGauge({ rate, target }) {
       <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 14, fontSize: 12, color: '#64748b' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b' }}>{rate.toFixed(2)}%</div>
-          <div>Actual Rate</div>
+          <div>Result</div>
         </div>
         <div style={{ width: 1, background: '#e2e8f0' }} />
         <div style={{ textAlign: 'center' }}>
@@ -585,7 +585,7 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
             <Line
               type="monotone"
               dataKey="rate"
-              name="Actual"
+              name="Result"
               stroke="#2563ea"
               strokeWidth={3}
               dot={{ r: 4 }}
@@ -602,7 +602,7 @@ function Dashboard({ data, totalPatients = 0, quarter = '', year = '', historyDa
               type="monotone"
               dataKey="target"
               name="Target"
-              stroke="#eb4647"
+              stroke="#92400e"
               strokeWidth={2}
               strokeDasharray="6 3"
               dot={false}
