@@ -364,23 +364,71 @@
     "summary": {
       "CCU": {
         "cases": 1,
-        "catheter_days": 179,
-        "rate": 5.59
+        "catheter_days": 324,
+        "rate": 3.09
       },
       "CSU": {
         "cases": 3,
-        "catheter_days": 1071,
-        "rate": 2.8
+        "catheter_days": 234,
+        "rate": 12.82
       },
       "ICN": {
         "cases": 1,
-        "catheter_days": 370,
-        "rate": 2.7
+        "catheter_days": 134,
+        "rate": 7.46
       },
       "ICU": {
         "cases": 10,
-        "catheter_days": 885,
-        "rate": 11.3
+        "catheter_days": 543,
+        "rate": 18.42
+      }
+    },
+    "germs_distribution": {
+      "CCU": {
+        "Gemella morbillorum": 1
+      },
+      "CSU": {
+        "Acinetobacter Baumanii": 2,
+        "MRSA": 1
+      },
+      "ICN": {
+        "Pseudomonas aeruginosa": 1
+      },
+      "ICU": {
+        "MRSA": 2,
+        "Acinetobacter Baumanii": 2,
+        "Enterococcus faecium": 1,
+        "Klebsiella CRE": 1,
+        "Candida albicans": 1,
+        "Klebsiella oxytoca": 1,
+        "Acinetobacter lwoffii": 1,
+        "Candida tropicalis": 1
+      }
+    }
+  },
+  {
+    "year": "2026",
+    "quarter": "الفصل الاول",
+    "summary": {
+      "CCU": {
+        "cases": 1,
+        "catheter_days": 345,
+        "rate": 2.9
+      },
+      "CSU": {
+        "cases": 3,
+        "catheter_days": 543,
+        "rate": 5.52
+      },
+      "ICN": {
+        "cases": 1,
+        "catheter_days": 2345,
+        "rate": 0.43
+      },
+      "ICU": {
+        "cases": 10,
+        "catheter_days": 1343,
+        "rate": 7.45
       }
     },
     "germs_distribution": {

@@ -31,7 +31,7 @@ function Home({ language }) {
           onClick={() => navigate('/mortality/dashboard')}
         >
           <div className={styles.cardGlow} />
-          <div className={styles.cardIcon}>💀</div>
+          <div className={styles.cardIcon}>🏥</div>
           <h2 className={styles.cardTitle}>
             {t('mortalityCardTitle')}
           </h2>

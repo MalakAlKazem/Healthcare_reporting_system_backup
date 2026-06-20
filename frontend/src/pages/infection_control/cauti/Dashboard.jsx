@@ -32,6 +32,9 @@ const RISK_COLS = [
   'length_of_stay','duration_of_catheter',
   'cancer','compromised_immune_system','respiratory_pb',
   'site_of_catheter_femoral',
+  'prematurity','neonates','infant','total_parenteral_nutrition',
+  'consciousness','head_trauma','burns','malnutrition',
+  'prolonged_antibiotic_exposure','reintubation_recatheterization','tracheostomy',
 ];
 const RISK_LABELS_EN = {
   diabetic:'Diabetic', hypertension:'Hypertension', dyslipidemia:'Dyslipidemia',
@@ -41,6 +44,11 @@ const RISK_LABELS_EN = {
   duration_of_catheter:'Duration of Catheter', cancer:'Cancer',
   compromised_immune_system:'Compromised Immune System', respiratory_pb:'Respiratory Problem',
   site_of_catheter_femoral:'Site of Catheter (Femoral)',
+  prematurity:'Prematurity', neonates:'Neonates', infant:'Infant',
+  total_parenteral_nutrition:'Total Parenteral Nutrition (TPN)',
+  consciousness:'Consciousness', head_trauma:'Head Trauma', burns:'Burns',
+  malnutrition:'Malnutrition', prolonged_antibiotic_exposure:'Prolonged Antibiotic Exposure',
+  reintubation_recatheterization:'Reintubation / Recatheterization', tracheostomy:'Tracheostomy',
 };
 const getRiskFactors = c =>
   RISK_COLS.filter(k => c[k] === true || c[k] === 'Yes' || c[k] === 'yes')
@@ -177,8 +185,10 @@ function CautiDashboard({ selectedQuarter }) {
 
   useEffect(() => {
     if (!selectedQuarter) return;
+    const QUARTER_AR = { '1': 'الفصل الاول', '2': 'الفصل الثاني', '3': 'الفصل الثالث', '4': 'الفصل الرابع' };
+    const q = QUARTER_AR[String(selectedQuarter.quarter)] || selectedQuarter.quarter;
     setCasesData(null);
-    fetch(`${API_URL}/cases?quarter=${encodeURIComponent(selectedQuarter.quarter)}&year=${selectedQuarter.year}`)
+    fetch(`${API_URL}/cases?quarter=${encodeURIComponent(q)}&year=${selectedQuarter.year}`)
       .then(r => r.json())
       .then(data => setCasesData(data))
       .catch(() => {});
@@ -592,6 +602,56 @@ function CautiDashboard({ selectedQuarter }) {
                   </div>
                 </div>
               )}
+
+              {/* ── Risk Factor Summary Table ── */}
+              {(() => {
+                const rfCases = (casesData?.cases || currentData?.cases || []).filter(c => c.floor === dept);
+                if (!rfCases.length) return null;
+                const total = rfCases.length;
+                const rows = RISK_COLS
+                  .map(k => ({ label: RISK_LABELS_EN[k], count: rfCases.filter(c => c[k] === true || c[k] === 'Yes' || c[k] === 'yes').length }))
+                  .filter(r => r.count > 0)
+                  .sort((a, b) => b.count - a.count);
+                if (!rows.length) return null;
+                const thS = { padding: '9px 10px', textAlign: 'start', fontWeight: 700, color: '#7c2d12', whiteSpace: 'nowrap', borderBottom: '2px solid #fed7aa', background: '#ffedd5' };
+                const tdS = { padding: '8px 10px', borderBottom: '1px solid #e2e8f0', verticalAlign: 'middle' };
+                return (
+                  <div style={{ marginBottom: '2rem' }} dir={ar ? 'rtl' : 'ltr'}>
+                    <h3 style={{ marginBottom: 12, color: '#7c2d12' }}>
+                      {ar ? `عوامل الخطر — ${dept}` : `Risk Factors — ${dept}`}
+                    </h3>
+                    <div style={{ overflowX: 'auto', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead>
+                          <tr>
+                            <th style={thS}>{ar ? 'عامل الخطر' : 'Risk Factor'}</th>
+                            <th style={{ ...thS, textAlign: 'center' }}>{ar ? 'عدد الحالات' : 'Cases'}</th>
+                            <th style={{ ...thS, textAlign: 'center' }}>{ar ? 'النسبة' : 'Percentage'}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((row, i) => (
+                            <tr key={row.label} style={{ background: i % 2 === 0 ? '#fff' : '#fff7ed' }}>
+                              <td style={tdS}>{row.label}</td>
+                              <td style={{ ...tdS, textAlign: 'center', fontWeight: 700 }}>{row.count}</td>
+                              <td style={{ ...tdS, textAlign: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                                    <div style={{ width: `${(row.count / total * 100).toFixed(0)}%`, height: '100%', background: '#c2410c', borderRadius: 4 }} />
+                                  </div>
+                                  <span style={{ minWidth: 44, textAlign: 'right', fontWeight: 600, color: '#374151' }}>
+                                    {(row.count / total * 100).toFixed(1)}%
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* ── Detailed Cases Table ── */}
               {(() => {

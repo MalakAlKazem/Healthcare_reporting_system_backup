@@ -282,13 +282,41 @@
     "summary": {
       "CCU": {
         "cases": 1,
-        "urinary_catheter_days": 222,
-        "rate": 4.5
+        "urinary_catheter_days": 242,
+        "rate": 4.13
       },
       "ICU": {
         "cases": 5,
-        "urinary_catheter_days": 1661,
-        "rate": 3.01
+        "urinary_catheter_days": 432,
+        "rate": 11.57
+      }
+    },
+    "germs_distribution": {
+      "CCU": {
+        "Pseudomonas aeruginosa": 1
+      },
+      "ICU": {
+        "Pseudomonas putida": 1,
+        "Klebsiella pneumonia": 1,
+        "MRSA": 1,
+        "VRE": 1,
+        "E.coli ESBL": 1
+      }
+    }
+  },
+  {
+    "year": "2026",
+    "quarter": "الفصل الاول",
+    "summary": {
+      "CCU": {
+        "cases": 1,
+        "urinary_catheter_days": 123,
+        "rate": 8.13
+      },
+      "ICU": {
+        "cases": 5,
+        "urinary_catheter_days": 354,
+        "rate": 14.12
       }
     },
     "germs_distribution": {

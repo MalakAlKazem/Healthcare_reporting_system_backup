@@ -88,6 +88,12 @@ def load_cases_for_quarter(quarter: str, year) -> dict:
     if path.exists():
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
+    # Fall back to legacy current file if quarter/year match
+    if _LEGACY_CURRENT.exists():
+        with open(_LEGACY_CURRENT, "r", encoding="utf-8") as f:
+            legacy = json.load(f)
+        if str(legacy.get("year")) == str(year) and _quarter_str(legacy.get("quarter")) == _quarter_str(quarter):
+            return legacy
     return {"year": str(year), "quarter": quarter, "cases": []}
 
 
