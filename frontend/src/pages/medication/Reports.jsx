@@ -5,10 +5,10 @@ import styles from '../../styles/Reports.module.css';
 
 const API_URL = 'http://localhost:8000/api/medication';
 
-const TEAL = 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)';
-const TEAL_DARK = '#0f766e';
+const TEAL = 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)';
+const TEAL_DARK = '#1e3a8a';
 
-function MedicationReports({ language, currentData, selectedQ }) {
+function MedicationReports({ language, selectedQ }) {
   const { t, i18n } = useTranslation();
   const ar = i18n.language === 'ar';
   const [reportType, setReportType] = useState('summary');
@@ -17,14 +17,14 @@ function MedicationReports({ language, currentData, selectedQ }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [fullData, setFullData] = useState(null);
 
   useEffect(() => {
     axios.get(`${API_URL}/history`)
       .then(res => {
         const entries = Array.isArray(res.data) ? res.data : [];
         setHistory(entries);
-        // Prefer the top-of-page selected quarter, then current data, then last entry
-        const preferred = selectedQ || (currentData?.quarter ? { quarter: currentData.quarter, year: String(currentData.year) } : null);
+        const preferred = selectedQ;
         const idx = preferred
           ? entries.findIndex(e => e.quarter === preferred.quarter && String(e.year) === String(preferred.year))
           : -1;
@@ -34,58 +34,28 @@ function MedicationReports({ language, currentData, selectedQ }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Sync when selectedQ changes (user selects from top-of-page selector while on this page)
+  // Sync when selectedQ changes
   useEffect(() => {
     if (!selectedQ || !history.length) return;
     const idx = history.findIndex(e => e.quarter === selectedQ.quarter && String(e.year) === String(selectedQ.year));
     if (idx >= 0) setSelectedIndex(idx);
   }, [selectedQ, history]);
 
-  // Sync selected index to last uploaded quarter whenever currentData or history changes
-  useEffect(() => {
-    if (selectedQ || !currentData?.quarter || history.length === 0) return;
-    const idx = history.findIndex(
-      e => e.quarter === currentData.quarter && String(e.year) === String(currentData.year)
-    );
-    if (idx >= 0) setSelectedIndex(idx);
-  }, [currentData, history]);
-
   const entry = history[selectedIndex] || null;
 
-  // If the selected quarter matches the saved current snapshot, use its full
-  // statistics (contains cause_stage_matrix, type_stage_matrix, heatmaps, etc.)
-  // instead of the lean history fields.
-  const isCurrentEntry =
-    entry &&
-    currentData &&
-    entry.quarter === currentData.quarter &&
-    String(entry.year) === String(currentData.year);
+  // Fetch full quarter data (statistics + records) from per-quarter file
+  useEffect(() => {
+    if (!entry) { setFullData(null); return; }
+    axios.get(`${API_URL}/quarter?q=${encodeURIComponent(entry.quarter)}&year=${entry.year}`)
+      .then(r => setFullData(r.data))
+      .catch(() => setFullData(null));
+  }, [entry?.quarter, entry?.year]);
 
-  const data = entry
-    ? {
-        quarter: entry.quarter,
-        year: entry.year,
-        statistics: isCurrentEntry
-          ? currentData.statistics
-          : {
-              summary: {
-                total_errors: entry.total_errors,
-                total_doses:  entry.total_doses,
-                error_rate:   entry.error_rate,
-              },
-              error_cycle:        {},
-              detected_by:        {},
-              duty_shift:         {},
-              staff_involved:     {},
-              error_causes:       {},
-              departments:        {},
-              ncc_merp:           {},
-              cause_stage_matrix: {},
-              type_stage_matrix:  {},
-              departments_all:    {},
-            },
-      }
-    : null;
+  const data = entry && fullData
+    ? { quarter: entry.quarter, year: entry.year, statistics: fullData.statistics || {} }
+    : entry
+      ? { quarter: entry.quarter, year: entry.year, statistics: { summary: { total_errors: entry.total_errors, total_doses: entry.total_doses, error_rate: entry.error_rate } } }
+      : null;
 
   const handleGenerateReport = async () => {
     if (!data) return;
@@ -214,7 +184,7 @@ function MedicationReports({ language, currentData, selectedQ }) {
       {/* Download link banner */}
       {reportUrl && (
         <div style={{
-          backgroundColor: '#0d9488',
+          backgroundColor: '#2563eb',
           color: 'white',
           padding: '1rem 1.5rem',
           borderRadius: '12px',
@@ -233,7 +203,7 @@ function MedicationReports({ language, currentData, selectedQ }) {
             download
             style={{
               backgroundColor: 'white',
-              color: '#0d9488',
+              color: '#1e3a8a',
               padding: '0.5rem 1.5rem',
               borderRadius: '8px',
               fontWeight: 'bold',
@@ -262,16 +232,18 @@ function MedicationReports({ language, currentData, selectedQ }) {
             <span className={styles.typeButtonIcon}>📄</span>
             {t('statisticsSummary')}
           </button>
-          <button
-            onClick={() => setReportType('detailed')}
-            className={`${styles.typeButton} ${styles.typeButtonDetailed} ${
-              reportType === 'detailed' ? styles.typeButtonActive : styles.typeButtonInactive
-            }`}
-            style={reportType === 'detailed' ? { background: TEAL } : {}}
-          >
-            <span className={styles.typeButtonIcon}>📋</span>
-            {t('errorDistributionTab')}
-          </button>
+          {fullData && (
+            <button
+              onClick={() => setReportType('detailed')}
+              className={`${styles.typeButton} ${styles.typeButtonDetailed} ${
+                reportType === 'detailed' ? styles.typeButtonActive : styles.typeButtonInactive
+              }`}
+              style={reportType === 'detailed' ? { background: TEAL } : {}}
+            >
+              <span className={styles.typeButtonIcon}>📋</span>
+              {t('errorDistributionTab')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -322,8 +294,8 @@ function MedicationReports({ language, currentData, selectedQ }) {
           </div>
 
           <div className={styles.summarySection} style={{
-            background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 50%, #cffafe 100%)',
-            borderColor: '#0d9488',
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #e0e7ff 100%)',
+            borderColor: '#2563eb',
           }}>
             <div className={styles.summarySectionHeader}>
               <div className={styles.summarySectionIcon} style={{ background: TEAL }}>
@@ -368,17 +340,17 @@ function MedicationReports({ language, currentData, selectedQ }) {
 
           <DistributionTable
             title={t('medProcessStageLabel')}
-            data={entry.error_cycle}
+            data={data.statistics?.error_cycle}
             teal={TEAL} tealDark={TEAL_DARK} ar={ar}
           />
           <DistributionTable
             title={t('detectedByLabel')}
-            data={entry.detected_by}
+            data={data.statistics?.detected_by}
             teal={TEAL} tealDark={TEAL_DARK} ar={ar}
           />
           <DistributionTable
             title={t('dutyShiftLabel')}
-            data={entry.duty_shift}
+            data={data.statistics?.duty_shift}
             teal={TEAL} tealDark={TEAL_DARK} ar={ar}
           />
         </div>
@@ -417,7 +389,7 @@ function DistributionTable({ title, data, teal, tealDark, ar }) {
           </thead>
           <tbody>
             {rows.map(([key, val], i) => (
-              <tr key={i} style={{ background: i % 2 === 0 ? '#f0fdfa' : 'white' }}>
+              <tr key={i} style={{ background: i % 2 === 0 ? '#eff6ff' : 'white' }}>
                 <td style={{ padding: '0.5rem 1rem', color: '#374151' }}>{key}</td>
                 <td style={{ padding: '0.5rem 1rem', textAlign: 'center', fontWeight: 600 }}>{val}</td>
                 <td style={{ padding: '0.5rem 1rem', textAlign: 'center', color: tealDark }}>
@@ -425,7 +397,7 @@ function DistributionTable({ title, data, teal, tealDark, ar }) {
                 </td>
               </tr>
             ))}
-            <tr style={{ background: '#ccfbf1', fontWeight: 700 }}>
+            <tr style={{ background: '#dbeafe', fontWeight: 700 }}>
               <td style={{ padding: '0.5rem 1rem', color: tealDark }}>{t('tableTotal')}</td>
               <td style={{ padding: '0.5rem 1rem', textAlign: 'center', color: tealDark }}>{total}</td>
               <td style={{ padding: '0.5rem 1rem', textAlign: 'center', color: tealDark }}>100%</td>
